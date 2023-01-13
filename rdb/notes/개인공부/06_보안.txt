@@ -1,0 +1,118 @@
+데이터베이스 보안
+
+    구분
+        물리적 환경에 대한 보안: 물리적 손상 방지
+        권한 관리를 통한 보안
+            접근 통제 >>> 권한이 없는 사용자로부터 보호
+            ~ 직원만 사용할 수 있도록 설정
+        운영 관리를 통한 보안
+            권한, 제약조건 관리 >>> 권한이 있는 사용자로부터 보호
+            권한에 따라 할 수 있는 작업, 열람 자료 제한
+
+    권한 관리
+        계정 + DB 사용 권한 차등 부여로 관리
+        일단 DB 내 모든 객체는 만든 사람만 사용할 수 있음
+            >>> 공유하려면 소유주가 권한을 줘야 함
+        
+        권한 부여: GRANT
+            1. 객체에 대한 권한 부여
+                객체 소유주가 부여
+                형식
+                    GRANT 권한 ON 객체 TO 사용자 [ WITH GRANT OPTION ];
+                
+                    부여 가능한 권한은 INSERT, DELETE, UPDATE, SELECT, REFERENCES, 등...
+                    한 번에 여러 개 부여 가능
+                        *** REFERENCES
+                            외래키 제약조건을 정의할 수 있는 권한
+                            이 권한을 받은 테이블의 기본키를 자기 테이블의 외래키로 사용 가능
+                    테이블 속성 일부에 대해서만 권한을 부여하고자 할 경우 "부여할 권한(속성1, 2, ...)"형태로 지정
+                    모든 사용자를 대상으로 하려면 TO PUBLIC
+                    권한은 기본적으로 다른 사용자에게 양도 불가
+                        >>> 단, WITH GRANT OPTION 사용 시 양도 가능
+                        >>> WITH GRANT OPTION은 재차 양도 가능
+                    
+                용례
+                    고객 테이블 검색 권한을 사용자 David에게 부여
+                        >>> GRANT SELECT ON 고객 TO David;
+                    
+                    모든 사용자에게 고객 테이블에 정보를 삽입 / 삭제할 수 있도록 권한 부여
+                        >>> GRANT INSERT, DELETE ON 고객 TO PUBLIC;
+                    
+                    고객 테이블의 등급, 적립금만 수정할 수 있는 권한을 Paul에 부여
+                        >>> GRANT UPDATE(등급, 적립금) ON 고객 TO Paul;
+                    
+                    고객 테이블에 대한 검색 권한을 WITH GRANT OPTION을 포함하여 Heywood에게 부여
+                        >>> GRANT SELECT ON 고객 TO Heywood WITH GRANT OPTION;
+                        >>> 이 경우 Heywood도 다른 사용자에게 이 권한을 양도할 수 있다
+                    
+            2. 시스템 권한 부여
+                DBA가 부여
+                종류: 테이블 / 뷰 생성 등...
+                객체 대상이 아니기 때문에 객체 이름은 필요없음
+                형식
+                    GRANT 권한 TO 사용자;
+                
+                용례
+                    테이블을 만들 수 있는 권한을 DJ에게 부여
+                        >>> GRANT CREATE TABLE TO DJ;
+                        
+                    뷰를 생성할 수 있는 권한을 MC에게 부여
+                        >>> GRANT CREATE VIEW TO MC;
+            
+        권한 취소: REVOKE
+            1. 객체에 대한 권한 취소
+                형식
+                    REVOKE 권한 ON 객체 FROM 사용자 CASCADE | RESTRICT;
+                    *** WITH GRANT OPTION을 사용한 경우라면?
+                        1. CASCADE
+                            전부 삭제
+                            형식: REVOKE ... FROM user CASCADE;
+
+                        2. RESTRICT
+                            해당 유저의 권한만 삭제
+                            형식: REVOKE ... FROM user RESTRICT;
+            
+                *** 객체 소유주, DBA는 사용자 별 권한 목록을 작성해두고 관리하는 것이 좋음
+            
+            시스템 권한 취소
+                형식: REVOKE 권한 FROM 사용자;
+                    
+    역할의 부여와 취소
+        역할
+            목적: 권한 부여, 관리 편의
+            여러 권한을 역할이라는 이름으로 묶어두는 방식
+            역할 정의, 부여는 DBA 권한
+            역할의 권한 추가는 객체 소유주가 GRANT로 실시
+            
+                ~ 역할 생성 + 부여 >>> 인터페이스 생성 + 배포 // 권한 부여 >>> 구현
+            
+            생성: CREATE ROLE 역할_이름
+            역할 부여: GRANT 역할 TO 사용자;
+            역할 회수: REVOKE 역할 FROM 사용자;
+            역할 제거: DROP ROLE 역할;
+            
+            >>> 역할에 권한 부여: GRANT 권한 ON 객체 TO 역할;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
