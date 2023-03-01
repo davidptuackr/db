@@ -1,0 +1,249 @@
+16장 분석함수
+
+윈도우
+
+순위
+    순위 기능 별 동점 처리
+        row_number: 임의로 지정된 각 행의 고유 번호 반환
+        Rank: 순위에 차이가 있는 동일한 순위를 반환 >>> 동점이어도 그 안에 우선순위 존재
+        dense_rank: 순위에 차이가 없는 동일한 순위를 반환 >>> 동점이면 전부 같은 우선순위
+        
+    ex. 대여횟수를 기준으로 순위를 매길 경우, 기능 별 처리 방식 확인
+
+SELECT 
+    customer_id, 
+    count(*) num_rentals,
+    row_number() over (order by count(*) desc) row_number_rnk,
+    rank() over (order by count(*) desc) rank_rnk,
+    dense_rank() over (order by count(*) desc) dense_rank_rnk
+FROM rental
+GROUP BY customer_id
+ORDER BY 2 desc
+LIMIT 20;
+
+    결과
+row_number()
+    동점의 경우 행 순서로 순위 부여
+    순위는 고유하다 >>> 절대 겹치지 않는다
+rank()
+    동점의 경우 같은 순위 부여
+    이 때, 테이블에 먼저온 행의 순서 > 나중의 온 행의 순서이며 동점인 행의 개수만큼 순위를 건너뛴다 
+        ex. (1, 2, 3, 3, 5, 5, 5, 8, ...)
+dense_rank()
+    rank()와 유사하다
+    한 가지 차이는 순위를 건너뛰지 않는다는 것이다.
+        ex. (1, 2, 2, 3, 4, 4, 4, 4, 5, ...)
+
+
+    ex. 월별 대여량을 기준으로 고객 별 순위 집계
+
+SELECT 
+    customer_id,
+    monthname(rental_date) rental_month,
+    count(*) num_rentals,
+    rank() over (
+        partition by monthname(rental_date)
+        order by count(*) desc
+    ) rank_rnk
+FROM rental
+GROUP BY customer_id, monthname(rental_date)
+ORDER BY 2, 3 desc;
+
+    ex. 위 쿼리를 변형하여 월별 상위 5명의 고객에 대한 정보 검색
+
+WITH rank_by_month AS (
+    SELECT
+        customer_id,
+        monthname(rental_date) rental_month,
+        count(*) num_rentals,
+        rank() over (
+            partition by monthname(rental_date)
+            order by count(*) desc
+        ) rank_rnk
+    FROM rental
+    GROUP BY customer_id, monthname(rental_date)
+)
+SELECT customer_id, rental_month, num_rentals, rank_rnk
+FROM rank_by_month
+WHERE rank_rnk <= 5
+ORDER BY rental_month, num_rentals desc, rank_rnk;
+
+    *** 분석 함수는 SELECT 절에서만 사용할 수 있다 <<<
+
+
+
+리포팅 함수
+
+    ex. 월별 매출과 전체기간 매출 총계 산출
+    여기서 grand_total은 전부 같은 값이다 >>> 별도 구간 지정이 없었기 때문
+
+SELECT 
+    monthname(payment_date) payment_month,
+    amount,
+    sum(amount) over (partition by monthname(payment_date)) monthly_total,
+    sum(amount) over () grand_total
+FROM payment
+WHERE amount >= 10
+ORDER BY 1;
+
+    ex. grand_total을 이용해 전체 매출 중 해당 월이 차지하는 비율 산출
+    
+SELECT 
+    monthname(payment_date) payment_month,
+    sum(amount) month_total,
+    round(
+        sum(amount) / sum(sum(amount)) over () * 100,
+        2
+    ) pct_of_total
+FROM payment
+GROUP BY monthname(payment_date);
+
+    ex. 해당 월의 매출이 전 기간 중 어느 정도 되는지 표현: 최저 매출은LOWEST, 최고 매출은 HIGHEST, 그 외엔 MIDDLE로 표현
+    *** END desc라고 하면 desc를 SQL 구문으로 인식함 >>> 할거면 따옴표로 감쌀 것
+    
+SELECT 
+    monthname(payment_date) payment_month,
+    sum(amount) month_total,
+    CASE sum(amount)
+        WHEN max(sum(amount)) over () THEN 'HIGHEST'
+        WHEN min(sum(amount)) over () THEN 'LOWEST'
+        ELSE 'MIDDLE'
+    END 'desc'
+FROM payment
+GROUP BY monthname(payment_date);
+    
+
+
+롤링
+
+    ex. 주별 합계, 및 주단위 누적 합계 산출
+    
+SELECT
+    yearweek(payment_date) payment_week,
+    sum(amount) week_total,
+    sum(sum(amount)) over (
+        order by yearweek(payment_date) 
+        rows unbounded preceding
+    ) rolling_sum
+FROM payment
+GROUP BY yearweek(payment_date)
+ORDER BY 1;
+
+    ex. 직전 쿼리에서 주단위 누적 합계 대신 3주단위 평균 산출
+    
+SELECT
+    yearweek(payment_date) payment_week,
+    sum(amount) week_total,
+    avg(sum(amount)) 
+        over (
+            order by yearweek(payment_date) 
+            rows between 1 preceding and 1 following
+        ) rolling_3wk_avg
+FROM payment
+GROUP BY yearweek(payment_date)
+ORDER BY 1;
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    05년도 분기별, 월별 매출 집계
+
+SELECT
+    quarter(payment_date) quarter,
+    monthname(payment_date) month_nm,
+    sum(amount) monthly_sales
+FROM payment
+WHERE year(payment_date) = 2005
+GROUP BY quarter(payment_date), monthname(payment_date);
+
+    위 쿼리에 전체 기간 중 최대 매출, 분기 별 최대 매출 산출
+
+SELECT
+    quarter(payment_date) quarter,
+    monthname(payment_date) month_nm,
+    sum(amount) monthly_sales,
+    max(sum(amount)) over() max_overall_sales,
+    max(sum(amount)) over(partition by quarter(payment_date)) max_qrtr_sales
+FROM payment
+WHERE year(payment_date) = 2005
+GROUP BY quarter(payment_date), monthname(payment_date);
+
+
+
+    월별 매출에 따라 순위 부여
+
+SELECT 
+    quarter(payment_date) quarter,
+    monthname(payment_date) month_nm,
+    sum(amount) monthly_sales,
+    rank() over (order by sum(amount) desc) sales_rank
+FROM payment
+WHERE year(payment_date) = 2005
+GROUP BY quarter(payment_date), monthname(payment_date)
+ORDER BY 1, month(payment_date);
+
+    각 월별 순위 대신 분기 내에서의 순위 산출
+
+SELECT 
+    quarter(payment_date) quarter,
+    monthname(payment_date) month_nm,
+    sum(amount) monthly_sales,
+    rank() over (
+        partition by quarter(payment_date)
+        order by sum(amount) desc
+    ) qtr_sales_rank
+FROM payment
+WHERE year(payment_date) = 2005
+GROUP BY quarter(payment_date), monthname(payment_date)
+ORDER BY 1, month(payment_date);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
