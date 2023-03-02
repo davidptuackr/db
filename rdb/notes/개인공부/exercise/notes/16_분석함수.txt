@@ -1,40 +1,29 @@
 16장 분석함수
 
 윈도우
+    기본 형식
+        SELECT ...
+            값
+                over ( 
+                    partition by 윈도우 설정 기준
+                    order by 정렬 기준
+                    [
+                        rows unbounded preceding: 제한 없는 선행 >>> 결과의 시작부터 현재 윈도우 마지막까지가 범위
+                        rows between X preceding and Y following >>> (직전 X개 롤링, 현재, 다음 Y개 롤링)까지 범위
+                        range between interval X preceding and interval Y following >>> (직전 X개 행 ~ 현재 행 ~ 다음 Y개 행)까지가 윈도우 범위
+                    ]
+                )
+
+over() >>> 테이블 전체를 윈도우 범위로 설정
 
 순위
     순위 기능 별 동점 처리
-        row_number: 임의로 지정된 각 행의 고유 번호 반환
-        Rank: 순위에 차이가 있는 동일한 순위를 반환 >>> 동점이어도 그 안에 우선순위 존재
-        dense_rank: 순위에 차이가 없는 동일한 순위를 반환 >>> 동점이면 전부 같은 우선순위
+        row_number(): 동점의 경우 행에 들어온 순서로 순위를 부여한다. 이 때 순위는 고유하며 절대 겹치지 않는다
+        rank(): 동점일 경우 순위는 같지만 먼저 들어온 행이 먼저 표시되며, 동점 수만큼 순위를 건너뛴다 
+            ex. (1, 2, 3, 3, 5, 5, 5, 8, ...)
+        dense_rank(): rank()와 비슷하지만, 순위를 건너뛰지 않는다
+            ex. (1, 2, 2, 3, 4, 4, 4, 4, 5, ...)
         
-    ex. 대여횟수를 기준으로 순위를 매길 경우, 기능 별 처리 방식 확인
-
-SELECT 
-    customer_id, 
-    count(*) num_rentals,
-    row_number() over (order by count(*) desc) row_number_rnk,
-    rank() over (order by count(*) desc) rank_rnk,
-    dense_rank() over (order by count(*) desc) dense_rank_rnk
-FROM rental
-GROUP BY customer_id
-ORDER BY 2 desc
-LIMIT 20;
-
-    결과
-row_number()
-    동점의 경우 행 순서로 순위 부여
-    순위는 고유하다 >>> 절대 겹치지 않는다
-rank()
-    동점의 경우 같은 순위 부여
-    이 때, 테이블에 먼저온 행의 순서 > 나중의 온 행의 순서이며 동점인 행의 개수만큼 순위를 건너뛴다 
-        ex. (1, 2, 3, 3, 5, 5, 5, 8, ...)
-dense_rank()
-    rank()와 유사하다
-    한 가지 차이는 순위를 건너뛰지 않는다는 것이다.
-        ex. (1, 2, 2, 3, 4, 4, 4, 4, 5, ...)
-
-
     ex. 월별 대여량을 기준으로 고객 별 순위 집계
 
 SELECT 
@@ -71,8 +60,6 @@ ORDER BY rental_month, num_rentals desc, rank_rnk;
     *** 분석 함수는 SELECT 절에서만 사용할 수 있다 <<<
 
 
-
-리포팅 함수
 
     ex. 월별 매출과 전체기간 매출 총계 산출
     여기서 grand_total은 전부 같은 값이다 >>> 별도 구간 지정이 없었기 때문
@@ -130,6 +117,11 @@ GROUP BY yearweek(payment_date)
 ORDER BY 1;
 
     ex. 직전 쿼리에서 주단위 누적 합계 대신 3주단위 평균 산출
+        구현: (직전 행, 현재 행, 다음 행)의 평균
+            맨 처음 행은 (현재 행, 다음 행)
+            맨 마지막 행은 (직전 행, 마지막 행) 이용
+        한계: 없는 주가 있다는 것은 고려하지 않았다 
+            >>> 22주차의 경우 21~23주차 자료를 이용해야 하지만 21, 23, 24주차 자료를 이용해 계산했다
     
 SELECT
     yearweek(payment_date) payment_week,
@@ -143,6 +135,157 @@ FROM payment
 GROUP BY yearweek(payment_date)
 ORDER BY 1;
     
+    ex. 날짜 간격을 지정해서 계산
+        이 때, 없는 날짜는 제외하고 계산 >>> 2005-08-16의 경우 13~15일이 없으므로 16~19일치 자료만 이용한다
+    
+SELECT
+    date(payment_date),
+    sum(amount),
+    avg(sum(amount)) 
+        over (
+            order by date(payment_date)
+            range between
+                interval 3 day preceding 
+                and interval 3 day following
+        ) 7_day_avg
+FROM payment
+WHERE payment_date BETWEEN '2005-07-01' AND '2005-09-01'
+GROUP BY date(payment_date)
+ORDER BY 1;
+        
+    ex. 이전 행의 열 값, 다음 행의 열 값 검색: lag(), lead()
+        결과
+            prev_wk_tot: 직전 주의 매출총계. 첫 행은 null
+            prev_wk_tot: 다음 주의 매출총계. 마지막 행은 null
+        
+        기본 골조
+            lag / lead(값, 이동 단위, default(null treat)) over (윈도우)
+            >>> lag, lead ~~~ shift in pandas
+        
+SELECT 
+    yearweek(payment_date) payment_week,
+    sum(amount) week_total,
+    lag(sum(amount), 1) over (order by yearweek(payment_date)) prev_wk_tot,
+    lead(sum(amount), 1) over (order by yearweek(payment_date)) next_wk_tot
+FROM payment
+GROUP BY yearweek(payment_date)
+ORDER BY 1;
+
+    *** null 방지를 하기 위해서 세 번째 인자 추가: null일 경우 0으로 처리
+    
+SELECT 
+    yearweek(payment_date) payment_week,
+    sum(amount) week_total,
+    lag(sum(amount), 1, 0) over (order by yearweek(payment_date)) prev_wk_tot,
+    lead(sum(amount), 1, 0) over (order by yearweek(payment_date)) next_wk_tot
+FROM payment
+GROUP BY yearweek(payment_date)
+ORDER BY 1;
+
+    ex. lag를 이용해 직전 주와의 매출 차이를 백분율로 환산
+    
+SELECT 
+    yearweek(payment_date) payment_week,
+    sum(amount) week_total,
+    round(
+        (
+            sum(amount)
+            - lag(sum(amount), 1) over (order by yearweek(payment_date))) 
+            / lag(sum(amount), 1) over (order by yearweek(payment_date)
+        ) * 100,
+        1
+    ) pct_diff
+FROM payment
+GROUP BY yearweek(payment_date)
+ORDER BY 1;
+
+
+
+group_concat
+
+    ex. 출연진 수가 딱 3명인 영화 목록 생성
+    
+SELECT 
+    f.title,
+    group_concat(a.last_name order by a.last_name separator ', ') actors
+FROM actor a
+    INNER JOIN film_actor fa ON a.actor_id = fa.actor_id
+    INNER JOIN film f ON fa.film_id = f.film_id
+GROUP BY f.title
+HAVING count(*) = 3;
+
+
+
+WITH sales_fact AS (
+SELECT 2019 year_no, 1 month_no, 19228 tot_sales UNION ALL
+SELECT 2019 year_no, 2 month_no, 18554 tot_sales UNION ALL
+SELECT 2019 year_no, 3 month_no, 17325 tot_sales UNION ALL
+SELECT 2019 year_no, 4 month_no, 13221 tot_sales UNION ALL
+SELECT 2019 year_no, 5 month_no, 9964 tot_sales UNION ALL
+SELECT 2019 year_no, 6 month_no, 12658 tot_sales UNION ALL
+SELECT 2019 year_no, 7 month_no, 14233 tot_sales UNION ALL
+SELECT 2019 year_no, 8 month_no, 17342 tot_sales UNION ALL
+SELECT 2019 year_no, 9 month_no, 16853 tot_sales UNION ALL
+SELECT 2019 year_no, 10 month_no, 17121 tot_sales UNION ALL
+SELECT 2019 year_no, 11 month_no, 19095 tot_sales UNION ALL
+SELECT 2019 year_no, 12 month_no, 21436 tot_sales UNION ALL
+SELECT 2020 year_no, 1 month_no, 20347 tot_sales UNION ALL
+SELECT 2020 year_no, 2 month_no, 17434 tot_sales UNION ALL
+SELECT 2020 year_no, 3 month_no, 16225 tot_sales UNION ALL
+SELECT 2020 year_no, 4 month_no, 13853 tot_sales UNION ALL
+SELECT 2020 year_no, 5 month_no, 14589 tot_sales UNION ALL
+SELECT 2020 year_no, 6 month_no, 13248 tot_sales UNION ALL
+SELECT 2020 year_no, 7 month_no, 8728 tot_sales UNION ALL
+SELECT 2020 year_no, 8 month_no, 9378 tot_sales UNION ALL
+SELECT 2020 year_no, 9 month_no, 11467 tot_sales UNION ALL
+SELECT 2020 year_no, 10 month_no, 13842 tot_sales UNION ALL
+SELECT 2020 year_no, 11 month_no, 15742 tot_sales UNION ALL
+SELECT 2020 year_no, 12 month_no, 18636 tot_sales
+)
+
+
+
+16장 실습
+
+16.1 
+    sales_fact에서 모든 행을 검색하는 쿼리를 작성하고 tot_sales를 기준으로 순위 생성
+    이 때 가장 높은 값은 1, 가장 낮은 값은 24가 돼야 한다
+
+...
+SELECT 
+    year_no, 
+    month_no,
+    row_number() over (order by tot_sales desc) sales_rank
+FROM sales_fact
+ORDER BY sales_rank
+;    
+
+16.2 연도 별 월별 매출총계 순위 산출. 이 때 순위는 1 ~ 12까지
+
+...
+SELECT
+    year_no, 
+    month_no,
+    row_number() over(
+        partition by year_no
+        order by tot_sales desc
+    ) sales_rank
+FROM sales_fact
+ORDER BY 1, 3;
+
+16.3 2020년도 자료에서 이전 달의 tot_sales 값을 포함하는 열이 있는 쿼리 작성
+
+...
+SELECT
+    year_no,
+    month_no,
+    tot_sales,
+    lag(tot_sales, 1) over (order by year_no) prev_month_total
+FROM sales_fact
+WHERE year_no = 2020;
+
+
+
 
 
 
