@@ -6,15 +6,57 @@
             값
                 over ( 
                     partition by 윈도우 설정 기준
-                    order by 정렬 기준
+                    order by 정렬 기준 >>> 윈도우 정렬
                     [
-                        rows unbounded preceding: 제한 없는 선행 >>> 결과의 시작부터 현재 윈도우 마지막까지가 범위
-                        rows between X preceding and Y following >>> (직전 X개 롤링, 현재, 다음 Y개 롤링)까지 범위
-                        range between interval X preceding and interval Y following >>> (직전 X개 행 ~ 현재 행 ~ 다음 Y개 행)까지가 윈도우 범위
+                        rows unbounded preceding
+                        rows between X preceding and Y following
+                        range between interval X preceding and interval Y following
                     ]
                 )
 
 over() >>> 테이블 전체를 윈도우 범위로 설정
+
+    rows unbounded preceding
+        누적범위 >>> 처음부터 현재까지 
+        ex. 누적합, 누적평균
+    rows between X preceding and Y following
+        롤링한 행 개수 단위로 지정 (ex. 주 단위로 했다면 (전주, 지금, 내주))
+        단순히 개수를 기준으로만 판단한다 
+            ex.
+                GROUP BY year, month
+                sum(revenue) over (order by year, month rows between 2 preceding) >>> 3개월 단위로 윈도우 설정
+                    의도: 연속 3개월 단위 매출총계 계산
+                    나올 수 있는 결과: (20년 12월, 21년 4월, 21년 5월) 매출 총합
+                    
+                사용 쿼리
+SELECT
+    year(payment_date),
+    month(payment_date),
+    sum(amount) 1m_rev_sum,
+    sum(sum(amount)) over (
+        order by year(payment_date), month(payment_date)
+        rows between 2 preceding and 0 following
+    ) cons_3m_rev_sum
+FROM payment
+GROUP BY year(payment_date), month(payment_date)
+ORDER BY 1, 2;
+        
+    range between interval X preceding and interval Y following
+        원본 행 개수 단위로 지정.
+        범위 내 없는 값은 제외
+            ex. 연속 7일 간의 매출총계 산출
+SELECT
+    date(payment_date),
+    sum(amount) daily_rev_sum,
+    sum(sum(amount)) over (
+        order by date(payment_date)
+        range between interval 7 day preceding and interval 0 day following
+    ) cons_7day_rev_sum
+FROM payment
+GROUP BY date(payment_date)
+ORDER BY 1;
+
+
 
 순위
     순위 기능 별 동점 처리
@@ -134,7 +176,7 @@ SELECT
 FROM payment
 GROUP BY yearweek(payment_date)
 ORDER BY 1;
-    
+
     ex. 날짜 간격을 지정해서 계산
         이 때, 없는 날짜는 제외하고 계산 >>> 2005-08-16의 경우 13~15일이 없으므로 16~19일치 자료만 이용한다
     
@@ -153,6 +195,10 @@ WHERE payment_date BETWEEN '2005-07-01' AND '2005-09-01'
 GROUP BY date(payment_date)
 ORDER BY 1;
         
+        
+        
+쉬프팅: 지정 칸 수만큼 위 / 아래로 이동
+
     ex. 이전 행의 열 값, 다음 행의 열 값 검색: lag(), lead()
         결과
             prev_wk_tot: 직전 주의 매출총계. 첫 행은 null
