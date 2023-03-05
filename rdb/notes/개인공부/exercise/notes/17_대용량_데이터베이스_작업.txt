@@ -1,0 +1,119 @@
+17장 대용량 데이터베이스 작업
+
+파티션: 홀케이크
+뷰: 와츄원
+
+분할
+    말 그대로 테이블 쪼개기
+    분할 결과 "파티션" 생성
+    각 파티션의 정의는 같아도 서브셋은 절대 겹치지 않는다
+
+파티션
+    파티션은 물리적으로 스토리지 계층을 달리하는 다른 테이블스페이스에 저장될 수 있다
+    다른 압축 방식을 사용하여 파티션을 압축할 수 있다
+    일부 파티션의 경우 로컬 인덱스를 삭제할 수 있다
+    파티션 단위로 테이블의 통계를 낼 수 있다
+    한 테이블을 파티션 단위로 메모리에 남길지, 날려버릴지 조정 가능하다
+    
+    한줄요약: 한 테이블을 파티션 단위로 세밀하게 관리할 수 있다
+
+인덱스 분할
+    분할된 테이블에 인덱스가 있을 경우 그대로 유지할지, 파티션 별로 자체 인덱스를 갖도록 조각으로 나눌지 선택할 수 있다
+    이 때
+        글로벌 인덱스 >>> 테이블에 있던 인덱스 
+        로컬 인덱스 >>> 각 파티션의 인덱스
+
+분할
+    수평 분할: 행 단위 쪼개기 >>> 특정 열 값(=파티션 키)를 기준으로 분할
+    수직 분할: 열 단위 쪼개기
+    
+    범위 분할
+        특정 열 값 범위를 기준으로 분할 (ex. 분기 단위, 월 단위, 주 단위, ...)
+        
+    ex. 월 단위로 테이블 분할
+CREATE TABLE sales (
+    sales_id INT NOT NULL,
+    cust_id INT NOT NULL,
+    store_id INT NOT NULL,
+    sale_date DATE NOT NULL,
+    amount DECIMAL(9, 2)
+)
+PARTITION BY RANGE (yearweek(sale_date)) (
+    PARTITION s1 VALUES LESS THAN (202202), 
+    PARTITION s2 VALUES LESS THAN (202203), 
+    PARTITION s3 VALUES LESS THAN (202204), 
+    PARTITION s4 VALUES LESS THAN (202205), 
+    PARTITION s5 VALUES LESS THAN (202206), 
+    PARTITION s999 VALUES LESS THAN (MAXVALUE)
+);
+
+    분할 결과 확인
+SELECT partition_name, partition_method, partition_expression
+FROM information_schema.partitions
+WHERE table_name = 'sales'
+ORDER BY partition_ordinal_position;
+    
+    ex. 파티션을 새로 분할 (mysql)
+ALTER TABLE sales REORGANIZE PARTITION s999 INTO (
+    PARTITION s6 VALUES LESS THAN (202207), 
+    PARTITION s7 VALUES LESS THAN (202208), 
+    PARTITION s999 VALUES LESS THAN (MAXVALUE) 
+);
+
+INSERT INTO sales
+VALUES 
+    (1, 1, 1, '2022-01-18', 2765.15),
+    (2, 3, 4, '2022-02-07', 5322.08)
+;
+
+
+    ex. 각 파티션에 해당하는 튜플 수 계산
+SELECT concat('# of rows in s1 = ', count(*)) partition_rowcnt FROM sales PARTITION (s1) UNION ALL
+SELECT concat('# of rows in s2 = ', count(*)) partition_rowcnt FROM sales PARTITION (s2) UNION ALL
+SELECT concat('# of rows in s3 = ', count(*)) partition_rowcnt FROM sales PARTITION (s3) UNION ALL
+SELECT concat('# of rows in s4 = ', count(*)) partition_rowcnt FROM sales PARTITION (s4) UNION ALL
+SELECT concat('# of rows in s5 = ', count(*)) partition_rowcnt FROM sales PARTITION (s5) UNION ALL
+SELECT concat('# of rows in s6 = ', count(*)) partition_rowcnt FROM sales PARTITION (s6) UNION ALL
+SELECT concat('# of rows in s7 = ', count(*)) partition_rowcnt FROM sales PARTITION (s7) UNION ALL
+SELECT concat('# of rows in s999 = ', count(*)) partition_rowcnt FROM sales PARTITION (s999);
+
+
+
+    목록 분할
+        분할 키로 선택한 열이 열거된 값 집합일 경우 파티션 키로써 사용 가능
+        ex. 통화, 국가, 차종, 활동상태, ... >>> 범주형 자료
+    
+    ex. 지리적 영역으로 파티션 생성
+CREATE TABLE sales (
+    sales_id INT NOT NULL,
+    cust_id INT NOT NULL,
+    store_id INT NOT NULL,
+    sale_date DATE NOT NULL,
+    geo_region_cd VARCHAR(6) NOT NULL,
+    amount DECIMAL(9, 2)
+)
+PARTITION BY LIST COLUMNS (geo_region_cd) (
+    PARTITION NORTHAMERICA VALUES IN ('US_NE', 'US_SE', 'US_MW', 'US_NW', 'US_SQ', 'CAN', 'MEX'), 
+    PARTITION EUROPE VALUES IN ('EUR_E', 'EUR_W'), 
+    PARTITION ASIA VALUES IN ('CHN', 'JPN', 'IND')
+);
+
+    *** 다음 쿼리를 실행하면? 
+        >>> 'KOR'에 해당하는 파티션이 없기 때문에 오류 발생
+INSERT INTO sales
+VALUES 
+    (1, 1, 1, '2022-01-18', 'US_NE', 2765.15),
+    (2, 3, 4, '2022-02-07', 'CAN', 5322.08),
+    (2, 3, 4, '2022-03-07', 'KOR', 322.08)
+;
+    
+
+
+
+
+
+
+
+
+
+
