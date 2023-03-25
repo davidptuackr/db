@@ -1,0 +1,174 @@
+
+
+
+01
+
+01.1
+SELECT bookname
+FROM book
+WHERE bookid = 1;
+
+01.2
+SELECT bookname
+FROM book
+WHERE price >= 20000;
+
+01.3
+SELECT SUM(o.saleprice)
+FROM customer c INNER JOIN orders o ON c.custid = o.custid
+WHERE c.name = '박지성';
+
+01.4
+SELECT COUNT(*) '도서 수'
+FROM customer c INNER JOIN orders o ON c.custid = o.custid
+WHERE c.name = '박지성';
+
+01.5
+SELECT COUNT(DISTINCT publisher)
+FROM customer c 
+    INNER JOIN orders o ON o.custid = c.custid
+    INNER JOIN book b ON o.bookid = b.bookid
+WHERE c.name = '박지성';
+
+01.6
+SELECT 
+    b.bookname,
+    b.price,
+    b.price - o.saleprice 'diff'
+FROM customer c 
+    INNER JOIN orders o ON o.custid = c.custid
+    INNER JOIN book b ON o.bookid = b.bookid
+WHERE c.name = '박지성';
+
+01.7
+SELECT bookname
+FROM book b
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM orders o
+    WHERE 
+        b.bookid = o.bookid
+        AND custid = (SELECT custid FROM customer WHERE name = "박지성")
+);
+
+
+
+02
+
+02.1
+SELECT COUNT(*) FROM book;
+
+02.2
+SELECT COUNT(DISTINCT publisher) FROM book;
+
+02.3
+SELECT name, address FROM customer;
+
+02.4
+SELECT orderid
+FROM orders
+WHERE 
+    orderdate >= STR_TO_DATE("2014-07-04", "%Y-%m-%d")
+    AND orderdate <= STR_TO_DATE("2014-07-07", "%Y-%m-%d")
+;
+
+SELECT orderid
+FROM orders
+WHERE orderdate BETWEEN "2014-07-04" AND "2014-07-07";
+
+02.5
+SELECT DISTINCT bookid
+FROM orders
+WHERE bookid NOT IN (
+    SELECT bookid
+    FROM orders
+    WHERE orderdate BETWEEN "2014-07-04" AND "2014-07-07"
+);
+
+02.6
+SELECT name, address FROM customer WHERE name LIKE "김%";
+
+02.7
+SELECT name, address FROM customer WHERE name LIKE "김%아";
+
+02.8
+SELECT name
+FROM customer c
+WHERE NOT EXISTS ( SELECT 1 FROM orders o WHERE c.custid = o.custid );
+
+SELECT name
+FROM customer
+WHERE custid NOT IN ( SELECT custid FROM orders );
+
+02.9
+SELECT SUM(saleprice), AVG(saleprice) FROM orders;
+
+02.10
+SELECT 
+    c.name, 
+    CASE
+        WHEN SUM(saleprice) IS NULL THEN 0
+        ELSE SUM(saleprice)
+    END net_sales
+FROM customer c LEFT OUTER JOIN orders o ON c.custid = o.custid
+GROUP BY c.name;
+
+02.11
+SELECT c.name,
+    CASE 
+        WHEN b.bookname IS NULL THEN '-'
+        ELSE b.bookname
+    END order_mds
+FROM customer c
+    LEFT OUTER JOIN orders o ON c.custid = o.custid
+    LEFT OUTER JOIN book b ON b.bookid = o.bookid
+;
+
+02.12
+SELECT *
+FROM orders o
+WHERE orderid = (
+    SELECT orderid
+    FROM orders o INNER JOIN book b ON o.bookid = b.bookid
+    WHERE (b.price - o.saleprice) = (
+        SELECT MAX(b.price - o.saleprice) diff
+        FROM orders o INNER JOIN book b ON o.bookid = b.bookid
+    )
+);
+
+02.13
+SELECT name
+FROM customer
+WHERE custid IN (
+    SELECT custid
+    FROM orders
+    GROUP BY custid
+    HAVING SUM(saleprice) > (
+        SELECT AVG(saleprice)
+        FROM orders
+    )
+);
+
+
+
+03
+
+03.1
+SELECT DISTINCT c.name
+FROM orders o INNER JOIN customer c ON (o.custid = c.custid) AND (c.name != "박지성")
+WHERE o.bookid IN (
+    SELECT bookid
+    FROM book 
+    WHERE publisher IN (
+        SELECT b.publisher
+        FROM orders o 
+            INNER JOIN customer c ON (o.custid = c.custid) AND (c.name = "박지성")
+            INNER JOIN book b ON (o.bookid = b.bookid)
+    )
+);
+
+03.2
+SELECT o.custid
+FROM orders o INNER JOIN book b ON o.bookid = b.bookid
+GROUP BY o.custid
+HAVING COUNT(DISTINCT b.publisher) >= 2;
