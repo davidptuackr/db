@@ -172,3 +172,100 @@ SELECT o.custid
 FROM orders o INNER JOIN book b ON o.bookid = b.bookid
 GROUP BY o.custid
 HAVING COUNT(DISTINCT b.publisher) >= 2;
+
+03.3
+SELECT *
+FROM book
+WHERE bookid IN (
+    SELECT bookid
+    FROM orders
+    GROUP BY bookid
+    HAVING COUNT(bookid) / (SELECT COUNT(custid) FROM customer)  > 0.3
+);
+ 
+
+
+04
+
+04.1
+INSERT INTO book VALUES("스포츠 세계", "대한미디어", 10000);
+삽입 불가 >>> PK 필요
+
+04.2
+DELETE FROM book
+WHERE publisher = "삼성당";
+
+04.3
+DELETE FROM book
+WHERE publisher = "이상미디어";
+삭제 불가 >>> orders에서 참조중이기 때문
+
+04.4 
+UPDATE book
+SET publisher = "대한출판사"
+WHERE publisher = "대한미디어";
+
+04.5
+CREATE TABLE bookcompany(
+    name VARCHAR(20) NOT NULL,
+    address VARCHAR(20),
+    begin DATE,
+    
+    PRIMARY KEY(name)
+);
+
+04.6
+ALTER TABLE bookcompany ADD  webaddress VARCHAR(30);
+
+04.7
+INSERT INTO bookcompany(name, address, begin, webaddress)
+VALUES ('한빛아카데미', '서울시 마포구', '1993-01-01', 'https://hanbit.co.kr');
+
+
+
+05
+
+SELECT *
+FROM customer c1
+WHERE NOT EXISTS (
+    SELECT *
+    FROM orders c2
+    WHERE c1.custid = c2.custid
+);
+
+05.1
+주문이 없는 고객에 대한 정보 표시
+
+05.2
+주문이 있는 고객에 대한 정보 표시
+
+
+
+06
+
+06.0
+CREATE TABLE theaters (
+    theater_id INTEGER NOT NULL AUTO_INCREMENT,
+    name VARCHAR(20),
+    loc VARCHAR(20),
+    
+    PRIMARY KEY(theater_id)
+);
+
+CREATE TABLE members (
+    member_id INTEGER, 
+    name VARCHAR(20),
+    address VARCHAR(20),
+    PRIMARY KEY(member_id)
+);
+
+CREATE TABLE screen (
+    theater_id INTEGER,
+    screen_id INTEGER,
+    title VARCHAR(20),
+    price INTEGER,
+    seats INTEGER,
+    
+    PRIMARY KEY(theater_id, screen_id),
+    CONSTRAINT screen_id_btw_1to10 CHECK screen_id BETWEEN 1 AND 10,
+    CONSTRAINT unique_seat CHECK 
