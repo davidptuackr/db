@@ -15,18 +15,18 @@ WHERE price >= 20000;
 
 01.3
 SELECT SUM(o.saleprice)
-FROM customer c INNER JOIN orders o ON c.custid = o.custid
+FROM ordsomer c INNER JOIN orders o ON c.ordsid = o.ordsid
 WHERE c.name = '박지성';
 
 01.4
 SELECT COUNT(*) '도서 수'
-FROM customer c INNER JOIN orders o ON c.custid = o.custid
+FROM ordsomer c INNER JOIN orders o ON c.ordsid = o.ordsid
 WHERE c.name = '박지성';
 
 01.5
 SELECT COUNT(DISTINCT publisher)
-FROM customer c 
-    INNER JOIN orders o ON o.custid = c.custid
+FROM ordsomer c 
+    INNER JOIN orders o ON o.ordsid = c.ordsid
     INNER JOIN book b ON o.bookid = b.bookid
 WHERE c.name = '박지성';
 
@@ -35,8 +35,8 @@ SELECT
     b.bookname,
     b.price,
     b.price - o.saleprice 'diff'
-FROM customer c 
-    INNER JOIN orders o ON o.custid = c.custid
+FROM ordsomer c 
+    INNER JOIN orders o ON o.ordsid = c.ordsid
     INNER JOIN book b ON o.bookid = b.bookid
 WHERE c.name = '박지성';
 
@@ -48,7 +48,7 @@ WHERE NOT EXISTS (
     FROM orders o
     WHERE 
         b.bookid = o.bookid
-        AND custid = (SELECT custid FROM customer WHERE name = "박지성")
+        AND ordsid = (SELECT ordsid FROM ordsomer WHERE name = "박지성")
 );
 
 
@@ -62,7 +62,7 @@ SELECT COUNT(*) FROM book;
 SELECT COUNT(DISTINCT publisher) FROM book;
 
 02.3
-SELECT name, address FROM customer;
+SELECT name, address FROM ordsomer;
 
 02.4
 SELECT orderid
@@ -86,19 +86,19 @@ WHERE bookid NOT IN (
 );
 
 02.6
-SELECT name, address FROM customer WHERE name LIKE "김%";
+SELECT name, address FROM ordsomer WHERE name LIKE "김%";
 
 02.7
-SELECT name, address FROM customer WHERE name LIKE "김%아";
+SELECT name, address FROM ordsomer WHERE name LIKE "김%아";
 
 02.8
 SELECT name
-FROM customer c
-WHERE NOT EXISTS ( SELECT 1 FROM orders o WHERE c.custid = o.custid );
+FROM ordsomer c
+WHERE NOT EXISTS ( SELECT 1 FROM orders o WHERE c.ordsid = o.ordsid );
 
 SELECT name
-FROM customer
-WHERE custid NOT IN ( SELECT custid FROM orders );
+FROM ordsomer
+WHERE ordsid NOT IN ( SELECT ordsid FROM orders );
 
 02.9
 SELECT SUM(saleprice), AVG(saleprice) FROM orders;
@@ -110,7 +110,7 @@ SELECT
         WHEN SUM(saleprice) IS NULL THEN 0
         ELSE SUM(saleprice)
     END net_sales
-FROM customer c LEFT OUTER JOIN orders o ON c.custid = o.custid
+FROM ordsomer c LEFT OUTER JOIN orders o ON c.ordsid = o.ordsid
 GROUP BY c.name;
 
 02.11
@@ -119,8 +119,8 @@ SELECT c.name,
         WHEN b.bookname IS NULL THEN '-'
         ELSE b.bookname
     END order_mds
-FROM customer c
-    LEFT OUTER JOIN orders o ON c.custid = o.custid
+FROM ordsomer c
+    LEFT OUTER JOIN orders o ON c.ordsid = o.ordsid
     LEFT OUTER JOIN book b ON b.bookid = o.bookid
 ;
 
@@ -138,11 +138,11 @@ WHERE orderid = (
 
 02.13
 SELECT name
-FROM customer
-WHERE custid IN (
-    SELECT custid
+FROM ordsomer
+WHERE ordsid IN (
+    SELECT ordsid
     FROM orders
-    GROUP BY custid
+    GROUP BY ordsid
     HAVING SUM(saleprice) > (
         SELECT AVG(saleprice)
         FROM orders
@@ -155,22 +155,22 @@ WHERE custid IN (
 
 03.1
 SELECT DISTINCT c.name
-FROM orders o INNER JOIN customer c ON (o.custid = c.custid) AND (c.name != "박지성")
+FROM orders o INNER JOIN ordsomer c ON (o.ordsid = c.ordsid) AND (c.name != "박지성")
 WHERE o.bookid IN (
     SELECT bookid
     FROM book 
     WHERE publisher IN (
         SELECT b.publisher
         FROM orders o 
-            INNER JOIN customer c ON (o.custid = c.custid) AND (c.name = "박지성")
+            INNER JOIN ordsomer c ON (o.ordsid = c.ordsid) AND (c.name = "박지성")
             INNER JOIN book b ON (o.bookid = b.bookid)
     )
 );
 
 03.2
-SELECT o.custid
+SELECT o.ordsid
 FROM orders o INNER JOIN book b ON o.bookid = b.bookid
-GROUP BY o.custid
+GROUP BY o.ordsid
 HAVING COUNT(DISTINCT b.publisher) >= 2;
 
 03.3
@@ -180,7 +180,7 @@ WHERE bookid IN (
     SELECT bookid
     FROM orders
     GROUP BY bookid
-    HAVING COUNT(bookid) / (SELECT COUNT(custid) FROM customer)  > 0.3
+    HAVING COUNT(bookid) / (SELECT COUNT(ordsid) FROM ordsomer)  > 0.3
 );
  
 
@@ -226,11 +226,11 @@ VALUES ('한빛아카데미', '서울시 마포구', '1993-01-01', 'https://hanb
 05
 
 SELECT *
-FROM customer c1
+FROM ordsomer c1
 WHERE NOT EXISTS (
     SELECT *
     FROM orders c2
-    WHERE c1.custid = c2.custid
+    WHERE c1.ordsid = c2.ordsid
 );
 
 05.1
@@ -267,5 +267,127 @@ CREATE TABLE screen (
     seats INTEGER,
     
     PRIMARY KEY(theater_id, screen_id),
-    CONSTRAINT screen_id_btw_1to10 CHECK screen_id BETWEEN 1 AND 10,
-    CONSTRAINT unique_seat CHECK 
+    FOREIGN KEY(theater_id) REFERENCES theaters(theater_id),
+    CONSTRAINT screen_id_btw_1to10 CHECK (screen_id  BETWEEN 1 AND 10)
+);
+
+/* *** CONSTRAINT cond_name CHECK ... 할 때 CHECK 뒤에 괄호 필수 (ex. CHECK (a BETWEEN 1 AND 10)) */
+
+CREATE TABLE reservation(
+    theater_id INTEGER,
+    screen_id INTEGER,
+    member_id INTEGER,
+    seat_no INTEGER,
+    res_date DATE,
+    
+    PRIMARY KEY (theater_id, screen_id, member_id),
+    FOREIGN KEY (theater_id, screen_id) REFERENCES screen(theater_id, screen_id),
+    FOREIGN KEY (member_id) REFERENCES members(member_id),
+    
+    CONSTRAINT reservation_is_unique UNIQUE (theater_id, screen_id, member_id, seat_no)
+);
+
+/* *** 외래 키를 (theater_id, screen_id) 각자 설정하면 오류 발생 >>> screen의 PK 일부만 참조 불가능하기 때문? */
+
+06.0.2.1
+INSERT INTO theaters(name, loc) VALUES ("롯데", "잠실");
+INSERT INTO theaters(name, loc) VALUES ("메가", "강남");
+INSERT INTO theaters(name, loc) VALUES ("대한", "잠실");
+
+06.0.2.2
+INSERT INTO members VALUES(3, "홍길동", "강남");
+INSERT INTO members VALUES(4, "김철", "잠실");
+INSERT INTO members VALUES(9, "박영희", "강남");
+
+06.0.2.3
+INSERT INTO screen VALUES (1, 1, "어려운 영화", 15000, 48);
+INSERT INTO screen VALUES (3, 1, "멋진 영화", 7500, 120);
+INSERT INTO screen VALUES (3, 2, "재밌는 영화", 8000, 110);
+
+06.0.2.4
+INSERT INTO reservation VALUES(3, 2, 3, 15, '2014-09-01');
+INSERT INTO reservation VALUES(3, 1, 4, 16, '2014-09-01');
+INSERT INTO reservation VALUES(1, 1, 9, 48, '2014-09-01');
+
+06.3.2
+SELECT m.name
+FROM members m
+WHERE member_id IN (
+    SELECT member_id
+    FROM reservation
+    WHERE theater_id = ( SELECT theater_id FROM theaters WHERE name = '대한')
+);
+
+06.4.2
+SELECT *
+FROM screen
+WHERE theater_id IN ( SELECT theater_id FROM theaters WHERE loc = '잠실' );
+
+06.4.3
+SELECT theater_id, COUNT(*) / (SELECT COUNT(*) FROM reservation WHERE res_date = '2014-09-01') avg_visit_cnt
+FROM reservation
+WHERE res_date = '2014-09-01'
+GROUP BY theater_id;
+
+06.4.4
+SELECT r.theater_id, r.screen_id, s.title
+FROM reservation r INNER JOIN screen s ON r.theater_id = s.theater_id AND r.screen_id = s.screen_id
+WHERE res_date = '2014-09-01'
+GROUP BY r.theater_id, r.screen_id 
+HAVING COUNT(*) = (
+    SELECT MAX(visit_total)
+    FROM ( SELECT COUNT(*) visit_total FROM reservation GROUP BY theater_id, screen_id ) dt
+);
+
+
+
+07.1
+07.1.1
+CREATE TABLE ords(
+    name VARCHAR(20), 
+    age INT,
+    salary INT,
+    CONSTRAINT PRIMARY KEY (name)
+);
+
+INSERT INTO ords VALUES ('David', 25, 1000);
+INSERT INTO ords VALUES ('Paul', 30, 1500);
+INSERT INTO ords VALUES ('Heywood', 27, 1322);
+INSERT INTO ords VALUES ('Akira', 33, 2000);
+INSERT INTO ords VALUES ('Shion', 41, 3333);
+
+06.1.2
+CREATE TABLE ords(
+    name VARCHAR(20), 
+    city VARCHAR(20),
+    industrytype VARCHAR(20),
+    CONSTRAINT PRIMARY KEY (name)
+);
+
+INSERT INTO ords VALUES ('Vercetti', 'VC', 'chemicals');
+INSERT INTO ords VALUES ('CJ', 'Los Santos', 'logistics');
+INSERT INTO ords VALUES ('Sora', 'Shinjuku', 'entertainment');
+INSERT INTO ords VALUES ('Neru', 'Millennium', 'security');
+INSERT INTO ords VALUES ('Midori', 'Millennium', 'IT');
+
+CREATE TABLE ords(
+    number INT,
+    ordsname VARCHAR(20),
+    salesperson VARCHAR(20),
+    amount INT,
+    
+    PRIMARY KEY (ordsname, salesperson),
+    FOREIGN KEY (ordsname) REFERENCES ords(name),
+    FOREIGN KEY (salesperson) REFERENCES salesperson(name)
+);
+
+INSERT INTO ords VALUES (1, 'Sora', 'David', 10);
+INSERT INTO ords VALUES (2, 'Midori', 'Shion', 3);
+INSERT INTO ords VALUES (3, 'Neru', 'Heywood', 5);
+INSERT INTO ords VALUES (4, 'CJ', 'TOM', 7);
+INSERT INTO ords VALUES (5, 'CJ', 'David', 20);
+INSERT INTO ords VALUES (6, 'Neru', 'Paul', 16);
+INSERT INTO ords VALUES (7, 'Sora', 'David', 31);
+INSERT INTO ords VALUES (8, 'Neru', 'David', 2);
+INSERT INTO ords VALUES (9, 'CJ', 'Shion', 73);
+INSERT INTO ords VALUES (10, 'Sora', 'Shion', 10);
