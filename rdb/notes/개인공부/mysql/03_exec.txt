@@ -48,7 +48,7 @@ WHERE NOT EXISTS (
     FROM orders o
     WHERE 
         b.bookid = o.bookid
-        AND ordsid = (SELECT ordsid FROM ordsomer WHERE name = "박지성")
+        AND ordsid = (SELECT ordsid FROM customer WHERE name = "박지성")
 );
 
 
@@ -343,32 +343,32 @@ HAVING COUNT(*) = (
 
 07.1
 07.1.1
-CREATE TABLE ords(
+CREATE TABLE salesperson(
     name VARCHAR(20), 
     age INT,
     salary INT,
     CONSTRAINT PRIMARY KEY (name)
 );
 
-INSERT INTO ords VALUES ('David', 25, 1000);
-INSERT INTO ords VALUES ('Paul', 30, 1500);
-INSERT INTO ords VALUES ('Heywood', 27, 1322);
-INSERT INTO ords VALUES ('Akira', 33, 2000);
-INSERT INTO ords VALUES ('Shion', 41, 3333);
+INSERT INTO salesperson VALUES ('David', 25, 1000);
+INSERT INTO salesperson VALUES ('Paul', 30, 1500);
+INSERT INTO salesperson VALUES ('Heywood', 27, 1322);
+INSERT INTO salesperson VALUES ('Akira', 33, 2000);
+INSERT INTO salesperson VALUES ('Shion', 41, 3333);
 
 06.1.2
-CREATE TABLE ords(
+CREATE TABLE cust(
     name VARCHAR(20), 
     city VARCHAR(20),
     industrytype VARCHAR(20),
     CONSTRAINT PRIMARY KEY (name)
 );
 
-INSERT INTO ords VALUES ('Vercetti', 'VC', 'chemicals');
-INSERT INTO ords VALUES ('CJ', 'Los Santos', 'logistics');
-INSERT INTO ords VALUES ('Sora', 'Shinjuku', 'entertainment');
-INSERT INTO ords VALUES ('Neru', 'Millennium', 'security');
-INSERT INTO ords VALUES ('Midori', 'Millennium', 'IT');
+INSERT INTO cust VALUES ('Vercetti', 'VC', 'chemicals');
+INSERT INTO cust VALUES ('CJ', 'Los Santos', 'logistics');
+INSERT INTO cust VALUES ('Sora', 'Shinjuku', 'entertainment');
+INSERT INTO cust VALUES ('Neru', 'Millennium', 'security');
+INSERT INTO cust VALUES ('Midori', 'Millennium', 'IT');
 
 CREATE TABLE ords(
     number INT,
@@ -391,3 +391,149 @@ INSERT INTO ords VALUES (7, 'Sora', 'David', 31);
 INSERT INTO ords VALUES (8, 'Neru', 'David', 2);
 INSERT INTO ords VALUES (9, 'CJ', 'Shion', 73);
 INSERT INTO ords VALUES (10, 'Sora', 'Shion', 10);
+
+07.4
+SELECT name FROM cust WHERE city LIKE 'S%';
+
+07.5
+SELECT COUNT(*)
+FROM cust c
+WHERE EXISTS (
+    SELECT 1
+    FROM ords o
+    WHERE c.name = o.custname
+);
+
+*** EXISTS는 >>> 상관 부속질의 <<<에 사용 가능하다
+
+07.7
+SELECT name, age
+FROM salesperson s
+WHERE EXISTS (
+    SELECT 1
+    FROM ords o
+    WHERE o.salesperson = s.name AND EXISTS (
+        SELECT 1
+        FROM cust c
+        WHERE c.city = 'LA' AND c.name = o.custname
+    )
+);
+
+07.8
+SELECT s.name, s.age
+FROM salesperson s
+    INNER JOIN ords o ON s.name = o.salesperson
+    INNER JOIN cust c ON c.name = o.custname
+WHERE c.city = 'LA';
+
+07.10
+UPDATE salesperson SET salary = 45000 WHERE name = 'TOM';
+
+
+
+08
+
+08.1
+CREATE TABLE employee(
+    empno INT AUTO_INCREMENT,
+    name VARCHAR(20),
+    phoneno VARCHAR(20),
+    address VARCHAR(20),
+    sex TINYINT,
+    position TINYINT,
+    deptno TINYINT,
+    
+    CONSTRAINT PRIMARY KEY(empno),
+    CONSTRAINT chk_sex CHECK(sex IN (0, 1)),
+    CONSTRAINT chk_position CHECK(position IN (0, 1, 2, 3)) /* 3이 팀장 */
+);
+
+CREATE TABLE department(
+    deptno INT AUTO_INCREMENT,
+    deptname VARCHAR(20),
+    manager INT,
+    
+    CONSTRAINT PRIMARY KEY(deptno)
+);
+
+ALTER TABLE employee MODIFY deptno INT;
+ALTER TABLE employee ADD FOREIGN KEY(deptno) REFERENCES department(deptno);
+
+CREATE TABLE project (
+    projno INT AUTO_INCREMENT,
+    projname VARCHAR(20),
+    deptno INT,
+    
+    CONSTRAINT PRIMARY KEY(projno)
+);
+
+CREATE TABLE works (
+    empno INT,
+    projno INT,
+    hours_worked INT,
+    
+    CONSTRAINT PRIMARY KEY(empno, projno),
+    FOREIGN KEY(empno) REFERENCES employee(empno),
+    FOREIGN KEY(projno) REFERENCES project(projno)
+);
+
+08.5
+SELECT name, address
+FROM employee
+WHERE deptno = (SELECT deptno FROM department WHERE deptname = 'IT');
+
+08.6
+SELECT COUNT(*)
+FROM employee
+WHERE deptno = (
+    SELECT deptno
+    FROM department 
+    WHERE manager = (SELECT empno FROM employee WHERE name = 'gildong')
+);
+
+
+
+09
+
+09.5
+SELECT
+    MAX(SAL) MAX,
+    MIN(SAL) MIN,
+    SUM(SAL) SUM,
+    ROUND(AVG(SAL), 0) AVG
+FROM emp;
+
+09.6
+SELECT
+    JOB,
+    COUNT(*) IN_JOB
+FROM emp
+GROUP BY JOB;
+
+09.8
+SELECT
+    AVG(SAL) SAL_MEAN,
+    SUM(SAL) SAL_SUM
+FROM emp
+WHERE DEPTNO = 30;
+
+09.9
+SELECT DEPTNO
+FROM emp
+GROUP BY DEPTNO
+HAVING AVG(SAL) = (
+    SELECT MAX(sal_means)
+    FROM (SELECT AVG(SAL) sal_means FROM emp GROUP BY DEPTNO) sal_means_table
+);
+
+09.10
+SELECT JOB FROM emp WHERE SAL >= 3000;
+
+09.12
+
+09.13
+
+09.14
+
+09.15
+
