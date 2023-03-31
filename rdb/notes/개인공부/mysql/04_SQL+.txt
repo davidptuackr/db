@@ -1,0 +1,61 @@
+문자열 함수
+    CONCAT(a, b): 문자열 결합
+    LPAD(S, n, c): 길이 n의 문자열 오른쪽은 S로 채우고 남는 왼쪽 공간들은 c로 채움
+    RPAD(S, n, c): LPAD 반대
+    REPLACE(S, pat, rep): S에서 pat와 일치하는 모든 부분을 rep로 변경
+    SUBSTR(S, start, n): S의 start부터 문자 n개 선택 (*** 시작은 1)
+    TRIM(pat FROM S): S 양 끝에서 pat와 일치하는 부분 삭제
+    
+    LENGTH(S): 문자열의 바이트 수 산출 (ex. 'abc'는 1*3, '한국말'은 3*3)
+    CHAR_LENGTH(S): 문자열 길이 산출 (ex. 'abc', '세글자' 모두 3)
+
+
+
+날짜, 시간 함수
+    STR_TO_DATE('시간 모습의 문자열' , '시간 형식'): 문자열을 주어진 시간 형식의 DATE로 변환
+    DATE_FORMAT(dt, '시간 형식'): dt를 주어진 시간 형식의 문자로 반환
+    ADDDATE(dt, INTERVAL ~ [YEAR, DAY, ...]): DATE + ~ [YEAR, DAY, ...] 산출
+    DATE(dt): dt에서 DATE 부분만 추출
+    DATEDIIFF(dt1, dt2): dt1 - dt2 ( 이 때, dt1 > dt2 )
+
+    
+    
+널 값 처리
+    IFNULL(col, val): 튜플의 해당 속성이 NULL이면 지정한 값으로 변경
+
+
+
+행 번호 출력 예시
+
+SET @seq := 0;
+SELECT (@seq := @seq+1) No, custid, name, phone
+FROM customer
+WHERE @seq < 2;
+
+
+
+부속질의
+    구분
+        스칼라 부속질의: SELECT에 쓴 부속질의, 단일 값 반환
+        인라인 뷰: FROM에 쓴 부속질의. 결과를 뷰 형태로 반환
+        중첩질의: WHERE에 쓴 부속질의
+
+중첩질의에 사용 가능한 옵션 (즉 WHERE 절 부속질의에 쓸 수 있는 것들)
+    비교 연산자
+    IN, NOT IN
+    EXISTS, NOT EXISTS (이 때 반드시 상관 부속질의일 것)
+    ALL, SOME, ANY
+        SOME==ANY
+        비교 연산자와 결합해 사용. 이 때 비교 대상은 스칼라/열 이름 etc
+        ALL: 비교할 (튜플의 속성)값과 부속질의 비교 결과 모두 True일 경우에만 True
+        ANY: 비교 값과 부속질의 비교 결과 중 하나라도 True면 True
+        ex.
+            WHERE price > ALL (100, 200, 300) >>> price 속성이 300보다 큰 튜플만 True
+            WHERE price > ANY (100, 200, 300) >>> price 속성이 100보다 큰 튜플은 True
+            
+
+
+CREATE VIEW vorders
+AS SELECT orderid, o.custid, name, o.bookid, bookname, saleprice, orderdate
+FROM customer c, orders o, book b
+WHERE c.custid = o.custid AND b.bookid = o.bookid;
