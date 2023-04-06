@@ -1,0 +1,112 @@
+delimiter //
+CREATE PROCEDURE InsertBook (
+    myBookID INT,
+    myBookName VARCHAR(40),
+    myPublisher VARCHAR(40),
+    myPrice INT
+)
+BEGIN
+    INSERT INTO Book(bookid, bookname, publisher, price)
+    VALUES(myBookID, myBookName, myPublisher, myPrice);
+END
+//
+delimiter ;
+
+CALL InsertBook(13, 'SPORTS_SCIENCE', 'MADANG', 25000);
+SELECT * FROM book;
+
+
+
+delimiter //
+CREATE PROCEDURE book_insert_or_update(
+    my_bookid INT,
+    my_bookname VARCHAR(40),
+    my_pub VARCHAR(40),
+    my_price INT
+)
+BEGIN
+    DECLARE cnt INT;
+    SELECT COUNT(*) INTO cnt FROM book WHERE bookname LIKE my_bookname;
+    IF cnt != 0 THEN
+        SET SQL_SAFE_UPDATES = 0;
+        UPDATE book SET price = my_price WHERE bookname LIKE my_bookname;
+    ELSE
+        INSERT INTO book
+        VALUES(my_bookid, my_bookname, my_pub, my_price);
+    END IF;
+END;
+//
+delimiter ;
+
+CALL book_insert_or_update(15, 'FUN_SPORTS', 'MADANG', 25000);
+SELECT * FROM book;
+
+CALL book_insert_or_update(15, 'FUN_SPORTS', 'MADANG', 999999);
+SELECT * FROM book;
+
+
+
+delimiter //
+CREATE PROCEDURE mean_price(
+    OUT mean INT
+)
+BEGIN
+    SELECT AVG(price) INTO mean FROM book WHERE price IS NOT NULL;
+END;
+//
+delimiter ;
+
+CALL mean_price(@my_mean);
+SELECT @my_mean;
+
+
+
+delimiter //
+CREATE PROCEDURE interest()
+BEGIN
+    DECLARE my_interest INT DEFAULT 0;
+    DECLARE price INT;
+    DECLARE eor BOOLEAN DEFAULT FALSE;
+    DECLARE interest_cursor CURSOR FOR
+        SELECT saleprice FROM orders;
+    DECLARE CONTINUE handler FOR
+        NOT FOUND SET eor=TRUE;
+    OPEN interest_cursor;
+    cursor_loop: LOOP
+        FETCH interest_cursor INTO price;
+        IF eor THEN LEAVE cursor_loop;
+        END IF;
+        IF PRICE >= 30000 THEN SET my_interest = my_interest + price * 0.1;
+        ELSE SET my_interest = my_interest + price * 0.05;
+        END IF;
+    END LOOP cursor_loop;
+    CLOSE interest_cursor;
+    SELECT CONCAT('NET_INCOME(ET): ', my_interest);
+END;
+//
+delimiter ;
+
+CALL interest();
+
+
+
+CREATE TABLE book_log (
+    bookid_l INT,
+    bookname_l VARCHAR(40),
+    publisher_l VARCHAR(40),
+    price_l INT
+);
+
+delimiter //
+CREATE TRIGGER after_insert_book 
+    AFTER INSERT ON book FOR EACH ROW
+BEGIN
+    DECLARE mean INT;
+    INSERT INTO book_log VALUES(new.bookid, new.bookname, new.publisher, new.price);
+END;
+//
+delimiter ;
+
+INSERT INTO book VALUES(14, 'SPORTS_SCIENCE(CH01)', '이상미디어', 25000);
+SELECT * FROM book WHERE bookid=14;
+SELECT * FROM book_log WHERE bookid_l = 14;
