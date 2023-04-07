@@ -110,3 +110,39 @@ delimiter ;
 INSERT INTO book VALUES(14, 'SPORTS_SCIENCE(CH01)', '이상미디어', 25000);
 SELECT * FROM book WHERE bookid=14;
 SELECT * FROM book_log WHERE bookid_l = 14;
+
+
+
+delimiter //
+
+CREATE FUNCTION get_interest (
+    price INT ) RETURNS INT
+BEGIN
+    DECLARE interest INT;
+    IF price >= 30000 THEN SET interest = PRICE * 0.1;
+    ELSE SET interest = PRICE * 0.05;
+    END IF;
+    RETURN interest;
+END;
+//
+delimiter ;
+
+SELECT custid, orderid, saleprice, get_interest(saleprice) interest
+FROM orders;
+
+SET GLOBAL log_bin_trust_function_creators = OFF;
+
+delimiter //
+
+CREATE FUNCTION tst_01(
+    tst_var INT) RETURNS INT
+BEGIN
+    DECLARE tst_rsult INT;
+    SET tst_rsult = tst_var * 10;
+    RETURN tst_rsult;
+END;
+//
+delimiter ;
+
+
+
