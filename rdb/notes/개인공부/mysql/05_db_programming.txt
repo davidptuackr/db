@@ -39,16 +39,13 @@ BEGIN
 END
 //
 delimiter ;
+>>> 프로그래밍 언어에서 반환 자료형 선언 대신 CREATE PR..., 시그니처 + 바디, 바디 괄호는 BEGIN, END로 바꾼 형태
 
 프로시저 사용: CALL 프로시저(인자);
 프로시저 삭제: DROP PROCEDURE 프로시저;
 
-
-
-
-
-
-
+작성예시
+-- 프로시저 InsertBook 정의: ID, 테이블 book에 인자로 받은 책이름, 출판사, 가격을 값으로 하는 튜플을 삽입하는 프로시저
 delimiter //
 CREATE PROCEDURE InsertBook (
     myBookID INT,
@@ -63,11 +60,40 @@ END
 //
 delimiter ;
 
+-- 프로시저 호출
 CALL InsertBook(13, 'SPORTS_SCIENCE', 'MADANG', 25000);
 SELECT * FROM book;
 
 
 
+저장 프로그램의 제어문
+
+    DELIMITER: 구문 종료 기호 설정
+    BEGIN-END: ~ 메소드 바디에서 중괄호. 중첩 가능
+    IF-ELSE
+        IF cond THEN ...
+        ELSE ...
+        END IF;
+    LOOP
+        LEAVE를 만나기 전까지 반복
+        [label: ] LOOP
+        ...
+        LEAVE [label: ]
+        END LOOP
+    WHILE
+        조건이 참일 동안 WHILE 블록을 반복
+        WHILE cond DO
+        ..., [ BREAK / CONTINUE ]
+        END WHILE
+    REPEAT
+        조건이 참일 동안 REPEAT의 블록을 반복
+        [label: ] REPEAT
+        ... [ BREAK / CONTINUE ]
+        UNTIL cond
+        END REPEAT [label: ]
+    RETURN: 프로시저 종료 + 값 반환
+
+ex. 인자로 받은 책이름이 이미 book에 있다면 가격만 수정하고, 아니면 튜플 삽입
 delimiter //
 CREATE PROCEDURE book_insert_or_update(
     my_bookid INT,
@@ -88,15 +114,12 @@ BEGIN
 END;
 //
 delimiter ;
-
 CALL book_insert_or_update(15, 'FUN_SPORTS', 'MADANG', 25000);
 SELECT * FROM book;
-
 CALL book_insert_or_update(15, 'FUN_SPORTS', 'MADANG', 999999);
 SELECT * FROM book;
 
-
-
+ex. 도서가격 평균 산출
 delimiter //
 CREATE PROCEDURE mean_price(
     OUT mean INT
@@ -106,10 +129,31 @@ BEGIN
 END;
 //
 delimiter ;
-
 CALL mean_price(@my_mean);
 SELECT @my_mean;
 
+*** 위 프로시저를 좀 더 정확히 이야기하자면
+    1. 인자 중 하나는 앞에 OUT을 붙여 결과를 담을 변수로 지정할 것
+    2. CALL할 때 프로시저(@변수 이름)과 같이 호출하고
+    3. 결과를 보려면 SELECT @변수 이름 과 같이 작성한다
+
+
+
+커서
+    프로시저의 SQL문 실행 결과가 다중행일 때 각 행을 순서대로 가리키기 위한 것
+    
+키워드
+    CURSOR 커서이름 IS 커서 정의
+        커서 생성
+        ex1. 출판사가 'orelly'인 도서의 정보를 담은 커서 생성
+            DECLARE orelly CURSOR FOR
+                SELECT *
+                FROM book
+                WHERE publisher = 'orelly';
+            
+    OPEN 커서: 커서 사용 시작
+    FETCH 커서 INTO 변수: 행 데이터를 가져옴
+    CLOSE 커서: 커서 사용 종료
 
 
 delimiter //
@@ -132,22 +176,39 @@ BEGIN
         END IF;
     END LOOP cursor_loop;
     CLOSE interest_cursor;
-    SELECT CONCAT('NET_INCOME(ET): ', my_interest);
+    SELECT CONCAT('NET_INCOME(ET): ', my_interest) net_income;
 END;
 //
 delimiter ;
-
 CALL interest();
 
+*** eor를 바꾸는 부분이 없는데 어떻게 LOOP를 빠져나오는 것인가?
+    DECLARE CONTINUE handler FOR NOT FOUND SET eor=TRUE 때문 >>> ~ try - catch
+    정확히 말하자면
+    DECLARE [ 동작 ] 이름 FOR [ 캐치할 상황 ] 구문 ...
+        동작
+            CONTINUE: 블록 계속 실행
+            EXIT: 블록에서 남은 부분까지만 실행하고 종료
+            
+        캐치할 상황
+            NOT FOUND: 커서가 마지막까지 가서 불러올 데이터가 없을 경우, ==SQLSTATE '02'
+            특정 에러 코드: ~1044, ..., 숫자
+            SQLSTATE: 5자리 문자열
+            SQLWARNING: 경고 (에러가 아님. ~ FutureWarning in python), ==SQLSTATE '01'
+            SQLEXCEPTION: SQLSTATE '00', '01', '02' 외 모든 경우
+    
 
 
-CREATE TABLE book_log (
-    bookid_l INT,
-    bookname_l VARCHAR(40),
-    publisher_l VARCHAR(40),
-    price_l INT
-);
-
+트리거
+    데이터 변경 (insert, update, delete) 발생 시 자동으로 같이 실행되는 프로시저
+    트리거 발생 시점은 변경 전, 변경 대신, 변경 후에 동작하도록 할 수 있다
+    ex. 
+        변경 전 특정 데이터 저장, ...
+        변경 대신 다른 동작을 하도록 지정
+        변경 후 변동사항 기록
+    활용: 기본값 제공 (ex. null일 경우 0으로 처리, ...), 제약 준수 (ex. 나이를 소수로 입력하면 알아서 수정), ...
+    
+ex. book에 새 튜플이 생성될 때마다 book_log에도 이를 알아서 기록하는 트리거 작성
 delimiter //
 CREATE TRIGGER after_insert_book 
     AFTER INSERT ON book FOR EACH ROW
