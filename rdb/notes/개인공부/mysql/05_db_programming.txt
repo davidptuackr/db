@@ -181,6 +181,7 @@ END;
 //
 delimiter ;
 CALL interest();
+>>> ~ while cursor has next do something
 
 *** eor를 바꾸는 부분이 없는데 어떻게 LOOP를 빠져나오는 것인가?
     DECLARE CONTINUE handler FOR NOT FOUND SET eor=TRUE 때문 >>> ~ try - catch
@@ -203,9 +204,9 @@ CALL interest();
     데이터 변경 (insert, update, delete) 발생 시 자동으로 같이 실행되는 프로시저
     트리거 발생 시점은 변경 전, 변경 대신, 변경 후에 동작하도록 할 수 있다
     ex. 
-        변경 전 특정 데이터 저장, ...
+        변경 전 특정 데이터 저장 >>> 백업
         변경 대신 다른 동작을 하도록 지정
-        변경 후 변동사항 기록
+        변동사항 기록 >>> 로깅
     활용: 기본값 제공 (ex. null일 경우 0으로 처리, ...), 제약 준수 (ex. 나이를 소수로 입력하면 알아서 수정), ...
     
 ex. book에 새 튜플이 생성될 때마다 book_log에도 이를 알아서 기록하는 트리거 작성
@@ -225,8 +226,15 @@ SELECT * FROM book_log WHERE bookid_l = 14;
 
 
 
-delimiter //
+사용자 정의 함수
 
+내장 함수처럼 SQL문과 같이 섞어서 쓸 수 있게 정의하는 함수
+    >>> 프로시저는 CALL ~~~ 형태로 사용하지만 사용자 정의 함수는 SELECT func(...)과 같이 사용한다는 점이 차이
+
+스칼라 반환 가능
+
+ex. 각 도서의 이윤을 계산하는 함수 정의
+delimiter //
 CREATE FUNCTION get_interest (
     price INT ) RETURNS INT
 BEGIN
@@ -242,7 +250,16 @@ delimiter ;
 SELECT custid, orderid, saleprice, get_interest(saleprice) interest
 FROM orders;
 
-SET GLOBAL log_bin_trust_function_creators = OFF;
+결과
+    스칼라 값을 반환하는 함수이므로 각 도서 별 이윤을 계산함
+    CREATE FUNCTION에서 괄호가 끝나는 지점에 반환형 지정 >>> 정수값을 반환하므로 RETURNS INT
+    BEGIN-END 바디 마지막에 반환하는 값 명시
+        >>> 여기선 도서 별 이윤을 계산해 interest에 저장하고, 이를 반환
+
+
+
+*** 함수 정의가 안될 때
+    >>> root 계정에서 SET GLOBAL log_bin_trust_function_creators = ON; 한 다음에 가능
 
 delimiter //
 
@@ -255,6 +272,38 @@ BEGIN
 END;
 //
 delimiter ;
+
+
+
+DB + java
+
+시작 전 F12 >>> project settings.libraries >>> mysql-connector-java-... .jar 추가
+
+*** 자바로 처리할때도 db의 인덱스는 1로 시작하는 것이 적용된다
+ex.
+    for (int i = 1; i < mtd.getColumnCount(); i++) { ... } 에서 int i=0으로 하면 SQLException
+    >>> 내부에서 자바가 처리할 수 있게 알아서 -1씩 감소시켜준다
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
