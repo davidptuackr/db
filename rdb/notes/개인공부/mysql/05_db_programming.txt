@@ -284,7 +284,20 @@ ex.
     for (int i = 1; i < mtd.getColumnCount(); i++) { ... } 에서 int i=0으로 하면 SQLException
     >>> 내부에서 자바가 처리할 수 있게 알아서 -1씩 감소시켜준다
 
+코드 분석
 
+Class.forName("com.mysql.cj.jdbc.Driver");
+    프로젝트 내 라이브러리에서 "com.mysql.cj.jdbc"로 가서 "Driver"를 찾아낸 뒤 
+    실행 중 위 코드를 만나면 그 때 가서 Driver를 로드하도록 한다
+    +++
+    이 때 드라이버 내의 정적 초기화에 의해 (즉 로드 즉시 실행되도록 짠 코드에 의해)
+    드라이버를 드라이버 매니저에 등록하게 된다
+    
+
+con = DriverManager.getConnection(url, userid, pwd);
+
+
+    
 
 
 

@@ -5,6 +5,7 @@ import java.util.Scanner;
 
 public class Booklist2 {
 
+
     Connection con;
     Scanner inputer;
 
@@ -80,7 +81,6 @@ public class Booklist2 {
                 System.out.println();
             }
 
-            con.close();
         } catch (SQLException e) {
             e.printStackTrace();
         }
