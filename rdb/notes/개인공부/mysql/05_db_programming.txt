@@ -287,27 +287,82 @@ ex.
 코드 분석
 
 Class.forName("com.mysql.cj.jdbc.Driver");
-    프로젝트 내 라이브러리에서 "com.mysql.cj.jdbc"로 가서 "Driver"를 찾아낸 뒤 
-    실행 중 위 코드를 만나면 그 때 가서 Driver를 로드하도록 한다
-    +++
+    실행 중 위 코드를 만났을 때 프로젝트 내 라이브러리에서 "com.mysql.cj.jdbc"로 가서 "Driver"를 찾아 로드한다.
     이 때 드라이버 내의 정적 초기화에 의해 (즉 로드 즉시 실행되도록 짠 코드에 의해)
-    드라이버를 드라이버 매니저에 등록하게 된다
-    
+    드라이버는 저절로 드라이버 매니저에 등록된다 ( >>> DriverManager.registerdDrivers에 처음 들어왔다면 원소로 삽입된다 )
 
 con = DriverManager.getConnection(url, userid, pwd);
-
-
+    URL, id, pw를 이용해 DB 연결 내용을 담은 Connection 객체를 생성한다
+    ex. 사용자 root, madang이 각각 DB에 접속하고자 할 경우
+        루트 계정의 연결 생성: DriverManager.getConnection(url, "root", "0000");
+        madang 계정의 연결 생성: DriverManager.getConnection(url, "madang", "madang");
+        
+Statement stmt = con.createStatement()
+    Connection과 사용자 사이를 중개하는 객체 Statement 생성
+    역할: 문자열 형태로 전달한 SQL 해석, 이를 Connection에 전달, Connection이 DB로부터 받아온 결과를 ResultSet으로 가공
     
+ResultSet rs = stmt.executeQuery(query);
+    질의 결과
+
+ResultSetMetaData mtd = rs.getMetaData();
+    ResultSet의 메타데이터 획득
+    ex. 열 이름, dtype, 테이블 이름, 스키마, ...
+
+while (rs.next()) { >>> 처리할 결과가 남아있을 동안에는
+    for (int i = 1; i < mtd.getColumnCount(); i++) { >>> 1번 열에서 n번 열에 대하여
+        switch (mtd.getColumnType(i)) { >>> i번 열의 자료형이
+            case 4 -> print rs.getInt(i); >>> 4일 경우엔 INT이므로 i번째 열 값은 정수 형태로 출력
+            case 12 -> print rs.getString(i); >>> 12일 경우엔 VARCHAR이므로 i번째 열 값은 문자열 형태로 출력
+        }
+    }
+    print nextLine
+}
+
+if (con != null) try { con.close(); } catch (SQLException e) { e.printStackTrace(); }
+    Connection 사용 종료
+    *** 만약 con, stmt, rs를 close()를 하지 않는다면?
+        쓰지 않는 이들이 쌓여 메모리 낭비가 발생한다
+        새로운 Connection을 만들 수 없게 된다. 다시 말해 Connection 수가 어느 지점을 넘어버려 다른 사용자가 DB를 못쓴다.
 
 
 
+실행 과정
+1. Class.forName()에 의해 실행 중 com.mysql.cj.jdbc 경로에 있는 Driver 클래스 로드
+2. Driver의 정적 초기화로 인해 클래스 로드와 함께 DriverManager.registerDriver(new Driver()) 실행
+3. 전달한 드라이버가 null이 아니라면 이를 드라이버 매니저에게 등록된 드라이버 목록에 추가
+    이 때 이미 등록된 드라이버일 경우 별도로 추가하지 않음 (at DriverManager line 341: registerdDrivers.addIfAbsent >>> 없을 경우에만 추가)
+4. DriverManager.getConnection(url, user, pw)으로 Connection 객체 생성
+    이 때
+    4.1 전달한 user, pw가 null이 아니면 Properties 객체 info의 멤버로 추가 (at DriverManager line 221~226)
+    4.2 DriverManager의 private static Connection getConnection(url, info, Reflection.getCallerClass()) 실행
+    4.3 클래스 호출에 의해 실행된 것이라면 (즉 함부로 뜯어고쳐서 부른 것이 아니라면) callerCL에 "com.mysql.cj.jdbc.Driver"를 로드한 클래스로더 (== 애플리케이션 클래스로더) 저장
+    4.4 callerCL이 null이거나 확장 클래스로더라면 
+        보안상 허용되도록 설정했을 경우 현재 스레드에서 문맥 상으로 클래스로더를 유추해냄
+    4.5 드라이버가 초기화된 상태인지 확인. 아니라면 드라이버 초기화
+    4.6 드라이버 매니저에 등록된 드라이버를 하나씩 불러와 url, info를 이용해 Connection 객체 생성
+    4.7 전달한 url, info가 Driver에 적절하다면 Connection 객체 반환
 
 
 
+*** 클래스로더 종류
+    - 부트스트랩 클래스로더
+        JVM 실행 시 최초로 실행되는 클래스로더
+        역할: ClassLoader, 코어 클래스(java.lang.Object, Class 등) 로드
+    - 확장 클래스로더 (=플랫폼 클래스로더)
+        java.ext.dirs, ${JAVA_HOME}/jre/lib/ext에 있는 클래스 로드
+        즉, 확장 자바 클래스 로드 >>> mysql jar처럼 별도 설치는 필요 없지만, import는 해야 쓸 수 있는 것들
+    - 애플리케이션 클래스로더
+        별도로 라이브러리에 추가한 클래스를 로드하는 클래스로더
+    
+    *** 만약 부트스트랩 클래스로더에 의해 로드된 클래스를 확장한 클래스에서 호출했을 경우 return null
 
+*** 드라이버 클래스의 목적
+    >>> DBMS 맞춤 프로그램 - DB 간 입출력 통제. 즉 DBMS 맞춤 인터페이스 제공
 
-
-
+*** Driver 객체를 new Driver ...와 같이 인스턴스를 만들지 않는 이유
+    - 어차피 만들어도 직접 명령을 하달할 일이 없다
+    - 실제 업무는 DBMS에 맞춰 구현한 Connection, Statement, ResultSet 들이 한다
+    - 제조사 별로 java.sql.*에 정의된 API에 맞춰 JDBC 드라이버를 만들어놨기 때문
 
 
 

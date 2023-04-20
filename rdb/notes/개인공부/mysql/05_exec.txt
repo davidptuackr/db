@@ -1,0 +1,41 @@
+풀이할 문제
+
+06 ~ 11
+
+06.1
+delimiter //
+CREATE PROCEDURE insert_customer(
+    id INT,
+    name VARCHAR(40),
+    address VARCHAR(50),
+    phone VARCHAR(20)
+)
+BEGIN
+    INSERT INTO customer VALUES(id, name, address, phone);
+END
+//
+delimiter ;
+
+06.2
+CREATE PROCEDURE book_insert_or_update(
+    id INT,
+    title VARCHAR(40),
+    pub VARCHAR(40),
+    saleprice INT
+)
+BEGIN
+    DECLARE is_exists VARCHAR DEFAULT null;
+    DECLARE price_o INT
+    SELECT 
+        bookname INTO is_exists,
+        price INTO price_o 
+    FROM book WHERE bookname LIKE title;
+    IF is_exists IS NULL THEN 
+        INSERT INTO book VALUES(id, title, pub, price);
+    ELSE IF is_exists IS NOT NULL AND saleprice > price_o THEN
+        UPDATE book SET price = saleprice WHERE bookname LIKE title;
+    END IF;
+END;
+//
+delimiter ;
+        
