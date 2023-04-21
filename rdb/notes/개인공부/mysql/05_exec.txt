@@ -38,4 +38,121 @@ BEGIN
 END;
 //
 delimiter ;
-        
+
+
+
+07
+
+07.1
+delimiter //
+CREATE PROCEDURE show_isang_mds()
+BEGIN
+    SELECT bookname, price FROM book WHERE publisher = '이상미디어';
+END
+//
+delimiter ;
+
+07.2
+delimiter //
+CREATE PROCEDURE show_revenue_by_pub()
+BEGIN
+    SELECT publisher, SUM(o.saleprice) revenue
+    FROM book b INNER JOIN orders o ON b.bookid = o.bookid
+    GROUP BY b.publisher;
+END
+//
+delimiter ;
+
+07.3
+delimiter //
+CREATE PROCEDURE show_books_po_means() 
+BEGIN
+    SELECT bookname
+    FROM book b
+        INNER JOIN (
+            SELECT publisher, AVG(price) price_mean
+            FROM book
+            GROUP BY publisher
+        ) mps ON b.publisher = mps.publisher
+    WHERE b.price > mps.price_mean;
+END
+//
+delimiter ;
+
+07.4
+delimiter //
+CREATE PROCEDURE ord_summaries() 
+BEGIN
+    SELECT 
+        id,
+        SUM(sp) paid_net,
+        CASE SUM(sp)
+            WHEN 0 THEN 0
+            ELSE COUNT(*)
+        END ord_cnt
+    FROM (
+        SELECT
+            c.custid id,
+            CASE 
+                WHEN saleprice IS NULL THEN 0
+                ELSE o.saleprice
+            END sp
+        FROM orders o RIGHT JOIN customer c ON o.custid = c.custid
+    ) summary
+    GROUP BY id;
+END
+//
+delimiter ;
+
+07.5
+delimiter //
+CREATE PROCEDURE show_net_ords()
+BEGIN
+    DECLARE has_next BOOLEAN DEFAULT TRUE;
+    DECLARE id INT;
+    DECLARE paid CHAR(20);
+    DECLARE cs_ord_summaries CURSOR FOR 
+        SELECT c.custid, CONVERT(SUM(o.saleprice), CHAR) paid_net
+        FROM customer c LEFT JOIN orders o ON c.custid = o.custid
+        GROUP BY c.custid
+    ;
+    DECLARE CONTINUE handler FOR NOT FOUND SET has_next = FALSE;
+    
+    OPEN cs_ord_summaries;
+    
+    WHILE has_next DO
+        FETCH next from cs_ord_summaries into id, paid;
+        IF paid IS NULL THEN SET paid = '';
+        END IF;
+    END WHILE;
+    CLOSE cs_ord_summaries;
+END
+//
+delimiter ;
+
+delimiter //
+CREATE PROCEDURE show_pay_info() 
+BEGIN
+    SELECT c.name, CONVERT(SUM(saleprice), CHAR) paid_net
+    FROM customer c INNER JOIN orders o ON o.custid = c.custid
+    GROUP BY c.name
+    UNION ALL
+    SELECT c.name, '' paid_net
+    FROM customer c
+    WHERE NOT EXISTS ( SELECT 1 FROM orders o WHERE c.custid = o.custid)
+    ;
+END
+//
+delimiter ;
+
+*** 반복문에서 커서 내용을 SELECT * 하면 한 행씩 테이블 형식으로 출력한다
+
+
+
+
+
+
+
+
+
+
