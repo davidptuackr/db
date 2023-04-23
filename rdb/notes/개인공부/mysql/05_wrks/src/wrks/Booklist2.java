@@ -24,10 +24,10 @@ public class Booklist2 {
 
         do {
             try {
-                System.out.print("ID >>> ");
-                userid = inputer.nextLine();
-                System.out.print("PW >>> ");
-                pwd = inputer.nextLine();
+                userid = "root";
+                pwd = "0000";
+                System.out.print("ID >>> " + userid + "\n");
+                System.out.print("PW >>> " + pwd + "\n");
 
                 System.out.println("Waiting for DB connection...");
                 con = DriverManager.getConnection(url, userid, pwd);
@@ -38,13 +38,26 @@ public class Booklist2 {
 
             if (con != null) break;
 
-        } while (!userid.equals("quit"));
+        } while (true);
     }
 
     private void run_sql() {
-        String query = inputer.nextLine();
 
-        try {
+        String query;
+        do {
+            System.out.println("INPUT QUERY");
+            query = inputer.nextLine();
+            if (query.equals("exit")) {
+                if (con != null) try {
+                    con.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+                System.out.println("Bye!");
+                return;
+            }
+
+            try {
             /*DatabaseMetaData metadata = con.getMetaData();
             ResultSet rs = metadata.getColumns(
                     "kodejava",
@@ -61,31 +74,36 @@ public class Booklist2 {
                 System.out.println("Column name: [" + name + "]; " +
                         "type: [" + type + "]; size: [" + size + "]");
             }*/
-            Statement stmt = con.createStatement();
-            ResultSet rs = stmt.executeQuery(query);
-            ResultSetMetaData mtd = rs.getMetaData();
+                Statement stmt = con.createStatement();
+                ResultSet rs = stmt.executeQuery(query);
+                ResultSetMetaData mtd = rs.getMetaData();
 
-            for (int i = 1; i < mtd.getColumnCount(); i++) {
-                System.out.format("\t%s", mtd.getColumnName(i));
-            }
-            System.out.println();
+                if (query.substring(0, 6).equals("select")) {
+                    for (int i = 1; i <= mtd.getColumnCount(); i++) {
+                        System.out.format("\t%s", mtd.getColumnName(i));
+                    }
+                    System.out.println();
 
-            while (rs.next()) {
-                for (int i = 1; i < mtd.getColumnCount(); i++) {
-                    switch (mtd.getColumnType(i)) {
-                        case 4 -> System.out.print("\t" + rs.getInt(i));
-                        case 12 -> System.out.print("\t" + rs.getString(i));
-                        default -> System.out.print("\t-");
+                    while (rs.next()) {
+                        for (int i = 1; i <= mtd.getColumnCount(); i++) {
+                            switch (mtd.getColumnType(i)) {
+                                case 3 -> System.out.print("\t" + rs.getDouble(i));
+                                case 4 -> System.out.print("\t" + rs.getInt(i));
+                                case 12 -> System.out.print("\t" + rs.getString(i));
+                                default -> System.out.print("\t-");
+                            }
+                        }
+                        System.out.println();
                     }
                 }
-                System.out.println();
-            }
 
-        } catch (SQLException e) {
-            e.printStackTrace();
-        } finally {
-            if (con != null) try { con.close(); } catch (SQLException e) { e.printStackTrace(); }
-        }
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        } while (true);
+
+
     }
 
         public static void main(String[] args) {
