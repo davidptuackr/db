@@ -1,6 +1,8 @@
 package wrks;
 
 import java.sql.*;
+import java.util.Arrays;
+import java.util.Locale;
 import java.util.Scanner;
 
 public class Booklist2 {
@@ -75,10 +77,42 @@ public class Booklist2 {
                         "type: [" + type + "]; size: [" + size + "]");
             }*/
                 Statement stmt = con.createStatement();
-                ResultSet rs = stmt.executeQuery(query);
-                ResultSetMetaData mtd = rs.getMetaData();
+                ResultSet rs = null;
+                ResultSetMetaData mtd;
+                CallableStatement cstmt;
 
-                if (query.substring(0, 6).equals("select")) {
+                if (query.substring(0, 4).equals("call")) {
+                    String procedure_name = query.split(" ")[1];
+                    cstmt = con.prepareCall("{call" + procedure_name + " (?, ?, ?, ?)}");
+                }
+                else {
+                    stmt.execute(query);
+                }
+
+                switch (query.substring(0, 6)) {
+                    case "select" -> rs = stmt.executeQuery(query);
+                    case "insert", "delete" -> rs = stmt.executeQuery("select * from ".concat(query.split(" ")[2]));
+                    case "update" -> rs = stmt.executeQuery("select * from ".concat(query.split(" ")[1]));
+                    default -> {
+                        String q;
+                        do {
+                            System.out.printf("""
+                                            %s IS NOT TREATED AS DML
+                                            TO SEE THE RESULT, 'SELECT' STATEMENT IS REQUIRED
+                                            IF YOU DON'T WANT, PRESS '[i]gnore (default)'
+                                            """,
+                                    query
+                            );
+                            q = inputer.nextLine();
+                            if (!q.isEmpty() && !q.equals("i") && q.substring(0, 6).toLowerCase(Locale.ROOT).equals("select")) {
+                                rs = stmt.executeQuery(q);
+                            }
+                        } while (!q.isEmpty() && !q.equals("i"));
+                    }
+                }
+
+                if (rs != null) {
+                    mtd = rs.getMetaData();
                     for (int i = 1; i <= mtd.getColumnCount(); i++) {
                         System.out.format("\t%s", mtd.getColumnName(i));
                     }
@@ -97,30 +131,18 @@ public class Booklist2 {
                     }
                 }
 
-
             } catch (SQLException e) {
-                e.printStackTrace();
+                System.out.println("INVALID SQL SYNTAX");
             }
         } while (true);
 
 
     }
 
-        public static void main(String[] args) {
+    public static void main(String[] args) {
         Booklist2 so = new Booklist2();
 
         so.run_sql();
+
     }
 }
-
-// SQL 관련 클래스는 java.sql .*에 포함되어 있다.
-// 접속변수를 초기화한다. url은 자바 드라이버 이름, 호스트명(localhost), 포트번호를 입력한다
-// userid는 관리자(madang), pwd는 사용자의 비밀번호(madang)를 입력한다.
-// Class.forName()으로 드라이버를 로딩한다. 드라이버 이름을 Class.forName에 입력한다.
-/* 데이터베이스를 연결하는 과정 *//*
-// 접속 객체 con을 DriverManager.getConnection 함수로 생성한다.
-// 접속이 성공하면 "데이터베이스 연결 성공"을 출력하도록 한다.
-// 문자열 query에 수행할 SQL 문을 입력한다.
-/* SQL 문 *//*
-/* 데이터베이스에 질의 결과를 가져오는 과정 *//*
-*/

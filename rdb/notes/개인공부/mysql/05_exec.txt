@@ -149,6 +149,57 @@ delimiter ;
 
 
 
+08
+08.1
+delimiter //
+CREATE FUNCTION grade(net_sales INT) RETURNS varchar(10)
+BEGIN
+    IF net_sales >=20000 THEN RETURN 'VIP';
+    ELSE RETURN 'MEMBER';
+    END IF;
+END
+//
+delimiter ;
+    
+SELECT c.name, grade(SUM(o.saleprice)) membership
+FROM customer c LEFT JOIN orders o ON c.custid = o.custid
+GROUP BY c.name;
+
+*** 함수 안에 집계 함수가 들어가면 ERROR 1111 발생: invalid use of group function
+
+08.2
+delimiter //
+CREATE FUNCTION domestic(address) RETURNS VARCHAR(10)
+BEGIN
+    IF address LIKE '대한민국%' THEN RETURN '국내거주';
+    ELSE RETURN '국외거주';
+    END IF;
+END;
+//
+delimiter ;
+
+
+select b.publisher, sum(o.saleprice) from book b inner join orders o on b.bookid = o.bookid group by b.publisher;
+select b.bookname, b.price, mps.pub, mps.mp from book b inner join (select publisher pub, AVG(price) mp from book group by publisher ) mps on b.publisher = mps.pub where b.price >= mps.mp
+
+
+
+10
+10.1
+select * from customer;
+update customer set address = 'DALLAS, TX' where name = 'David';
+
+10.2
+insert into book values(235, 'sklearn introduction', 'orelly', 55000);
+
+
+
+11
+11.1
+call(37, 'paul', 'irving, tx', '111-2222-3333');
+
+
+
 
 
 
