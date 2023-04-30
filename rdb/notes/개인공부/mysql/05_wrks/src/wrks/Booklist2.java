@@ -80,10 +80,29 @@ public class Booklist2 {
                 ResultSet rs = null;
                 ResultSetMetaData mtd;
                 CallableStatement cstmt;
+                String[] tokens = query.split("[(),\\s]");
 
-                if (query.substring(0, 4).equals("call")) {
-                    String procedure_name = query.split(" ")[1];
-                    cstmt = con.prepareCall("{call" + procedure_name + " (?, ?, ?, ?)}");
+                if (tokens[0].equals("call")) {
+                    String pname = tokens[1];
+                    StringBuilder params = new StringBuilder();
+                    params.append('(');
+                    params.append("?, ".repeat(tokens.length - 3));
+                    params.append("?)");
+
+                    cstmt = con.prepareCall("{call" + pname + params + "}");
+
+                    DatabaseMetaData db_mtd = con.getMetaData();
+                    ResultSet p_rs = db_mtd.getProcedures(null, null, pname);
+                    ResultSetMetaData p_rs_mtd = p_rs.getMetaData();
+
+                    for (int i = 1; i <= tokens.length-3; i++) {
+                        switch (p_rs_mtd.getColumnType(i)) {
+                            case 3 -> cstmt.setDouble(i, Double.parseDouble(tokens[i+1]));
+                            case 4 -> cstmt.setInt(i, Integer.parseInt(tokens[i+1]));
+                            case 12 -> cstmt.setString(i, tokens[i+1]);
+                        }
+                    }
+                    cstmt.executeUpdate();
                 }
                 else {
                     stmt.execute(query);
@@ -106,6 +125,7 @@ public class Booklist2 {
                             q = inputer.nextLine();
                             if (!q.isEmpty() && !q.equals("i") && q.substring(0, 6).toLowerCase(Locale.ROOT).equals("select")) {
                                 rs = stmt.executeQuery(q);
+                                break;
                             }
                         } while (!q.isEmpty() && !q.equals("i"));
                     }
