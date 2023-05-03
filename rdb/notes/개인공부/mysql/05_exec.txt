@@ -196,8 +196,14 @@ insert into book values(235, 'sklearn introduction', 'orelly', 55000);
 
 11
 11.1
-call(37, 'paul', 'irving, tx', '111-2222-3333');
+call insert_customer(25, 'mahler', 'berlin', '111-0000-3333');
 
+11.2
+call book_insert_or_update(273, 'NLP IN ACTION', 'orelly', 55555);
+id INT,
+    title VARCHAR(40),
+    pub VARCHAR(40),
+    saleprice INT
 
 
 

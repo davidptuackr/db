@@ -80,7 +80,7 @@ public class Booklist2 {
                 ResultSet rs = null;
                 ResultSetMetaData mtd;
                 CallableStatement cstmt;
-                String[] tokens = query.split("[(),\\s]");
+                String[] tokens = query.split("[(),\\s;']+");
 
                 if (tokens[0].equals("call")) {
                     String pname = tokens[1];
@@ -89,18 +89,60 @@ public class Booklist2 {
                     params.append("?, ".repeat(tokens.length - 3));
                     params.append("?)");
 
-                    cstmt = con.prepareCall("{call" + pname + params + "}");
+                    cstmt = con.prepareCall("{call " + pname + params + "}");
 
-                    DatabaseMetaData db_mtd = con.getMetaData();
+                    /*DatabaseMetaData db_mtd = con.getMetaData();
                     ResultSet p_rs = db_mtd.getProcedures(null, null, pname);
-                    ResultSetMetaData p_rs_mtd = p_rs.getMetaData();
+*/
 
-                    for (int i = 1; i <= tokens.length-3; i++) {
-                        switch (p_rs_mtd.getColumnType(i)) {
+                    DatabaseMetaData dbMetaData = con.getMetaData();
+                    ResultSet rs2 = dbMetaData.getProcedureColumns(con.getCatalog(),
+                            null,
+                            pname,
+                            null);
+
+                    /*while(rs2.next()) {
+                        // get stored procedure metadata
+                        String procedureCatalog     = rs2.getString(1);
+                        String procedureSchema      = rs2.getString(2);
+                        String procedureName        = rs2.getString(3);
+                        String columnName           = rs2.getString(4);
+                        short  columnReturn         = rs2.getShort(5);
+                        int    columnDataType       = rs2.getInt(6);
+                        String columnReturnTypeName = rs2.getString(7);
+                        int    columnPrecision      = rs2.getInt(8);
+                        int    columnByteLength     = rs2.getInt(9);
+                        short  columnScale          = rs2.getShort(10);
+                        short  columnRadix          = rs2.getShort(11);
+                        short  columnNullable       = rs2.getShort(12);
+                        String columnRemarks        = rs2.getString(13);
+
+                        System.out.println("stored Procedure name="+procedureName);
+                        System.out.println("procedureCatalog=" + procedureCatalog);
+                        System.out.println("procedureSchema=" + procedureSchema);
+                        System.out.println("procedureName=" + procedureName);
+                        System.out.println("columnName=" + columnName);
+                        System.out.println("columnReturn=" + columnReturn);
+                        System.out.println("columnDataType=" + columnDataType);
+                        System.out.println("columnReturnTypeName=" + columnReturnTypeName);
+                        System.out.println("columnPrecision=" + columnPrecision);
+                        System.out.println("columnByteLength=" + columnByteLength);
+                        System.out.println("columnScale=" + columnScale);
+                        System.out.println("columnRadix=" + columnRadix);
+                        System.out.println("columnNullable=" + columnNullable);
+                        System.out.println("columnRemarks=" + columnRemarks);
+                        System.out.println();
+                    }*/
+
+                    //ResultSetMetaData p_rs_mtd = p_rs.getMetaData();
+                    int i = 1;
+                    while (rs2.next()) {
+                        switch (rs2.getInt(6)) {
                             case 3 -> cstmt.setDouble(i, Double.parseDouble(tokens[i+1]));
                             case 4 -> cstmt.setInt(i, Integer.parseInt(tokens[i+1]));
                             case 12 -> cstmt.setString(i, tokens[i+1]);
                         }
+                        i++;
                     }
                     cstmt.executeUpdate();
                 }
@@ -163,6 +205,7 @@ public class Booklist2 {
         Booklist2 so = new Booklist2();
 
         so.run_sql();
+
 
     }
 }
