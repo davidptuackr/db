@@ -1,0 +1,85 @@
+06.5 modeling exec
+
+Professor: ssn PK, name, age, rank, specialty
+Dept: dno PK, dname, office
+Graduate: ssn PK, name, age, deg_prog: [ 석사 / 박사 ]
+Project: pid PK, sopnsor, start_date, end_date, budget
+
+05: 학과마다 그 학과를 운영하는 교수(학과장)가 한 명씩 있다
+    - Dept에 run 필드 추가
+    - Professor의 PK를 run의 FK로 사용
+
+06: 한 교수가 여러 학과에서 근무할 수 있는데 이 때 각 학가별로 참여백분율이 기록된다
+
+07: 대학원생에게는 학위 과정을 밟을 전공학과가 하나씩 있다
+    - Graduate에 major 필드 추가
+    - Dept의 PK를 major의 FK로 사용
+
+08: 대학원생에게는 조언해주는 선임대학원생이 있다
+    - Graduate에 advisor 필드 추가
+    - 순환 관계로 설정: Graduate의 PK를 advisor의 FK로 사용
+
+09. 과제는 한 교수(연구책임자)에 의해 관리된다
+    - Project에 manage 필드 추가
+    - Professor의 PK를 manage의 FK로 사용한다
+
+10: 과제는 한 명 이상의 교수(공동연구책임자)에 의해 수행된다
+
+11: 한 과제는 한 명 이상의 대학원생(연구조교)에 의해 수행된다
+
+
+중간
+    1. 개체에 05, 07, 08, 09 반영
+Professor: ssn PK, name, age, rank, specialty
+Dept: dno PK, dname, office, run REF Professor.ssn
+Graduate: ssn PK, name, age, deg_prog: [ 석사 / 박사 ], major REF Dept.dno, advisor REF Graduate.ssn
+Project: pid PK, sopnsor, start_date, end_date, budget, manage REF Professor.ssn
+
+    2. 06, 10, 11은 릴레이션화 고려
+
+
+
+관계
+
+근무(work_dept): ( 교수, 학과 ) 사이의 다대다 관계 ( 교수 M / 학과 N ), 양측 필참
+전공(major): ( 학과, 대학원생 ) 사이의 일대다 관계 ( 학과 N, 대학원생 1 ), 대학원생 필참, 학과 선택참여
+과제관리(manage): ( 과제, 교수 ) 사이의 일대일 관계, 과제 필참, 교수 선택참여
+공동연구(work_in): ( 과제, 교수 ) 사이의 일대다 관계 ( 교수 N, 과제 1 ), 양측 선택 참여
+과제참여(work_prog): ( 과제, 대학원생 ) 사이의 일대다 관계 ( 대학원생 N / 과제 1 ), 양측 필참
+조언(advisor): 대학원생 개체 집합 사이의 일대다 관계, 양측 선택참여 ( 모든 학생이 조언자 역할을 하는 것도 아니고, 조언자를 요하지 않았을 수도 있음)
+
+관계 특성
+    모두 비식별자 관계
+
+
+
+모델로의 사상
+1, 2 생략
+
+3. 이진 일대일 관계 사상: NULL이 가장 적게 나오는 방법으로 한다
+    과제관리: 과제 개체에 교수의 기본키를 외래키로 들여온다 >>> 연구책임자(manage)라는 이름 부여
+
+4. 이진 일대다 관계 사상: N측 개체에 1의 기본키를 외래키로 들여와 릴레이션을 구성한다 
+    전공: 대학원생 개체에 학과의 기본키를 외래키로 들여온다 >>> 전공(major)이라는 이름 부여
+    공동연구: 교수 개체에 과제의 기본키를 외래키로 들여온다 >>> 참여연구(workin)라는 이름 부여
+    과제참여: 대학원생 개체에 과제의 기본키를 외래키로 들여온다 >>> 참여연구(work_prog)라는 이름 부여
+    
+    
+5. 이진 다대다 관계 사상: 관계를 릴레이션으로 만들며 기본키는 각 개체의 기본키 조합으로 한다
+    근무: 다음과 같이 별도 릴레이션화.
+        근무: (학과번호, 교수아이디) PK, 참여백분율(pct_time)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
