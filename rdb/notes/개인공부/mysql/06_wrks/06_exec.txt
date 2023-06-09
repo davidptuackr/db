@@ -74,6 +74,24 @@ Project: pid PK, sopnsor, start_date, end_date, budget, manage REF Professor.ssn
 
 
 
+06.7
+직원: 직원번호 PK , 이름, 구내전화번호, 운전면허번호
+주차공간: 일련번호 PK, 사용직원 FK REF 직원.직원번호, 주차장이름, 층수, 위치, 주차대수(유도)
+
+주차대수
+    주차장 별 해당 층수에 있는 주차 공간 수로 계산
+    select count(*)
+    from 주차공간
+    group by 주차장이름, 층수
+
+
+
+
+
+
+
+
+
 
 
 
