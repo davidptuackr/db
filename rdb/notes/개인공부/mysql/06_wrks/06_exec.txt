@@ -86,6 +86,80 @@ Project: pid PK, sopnsor, start_date, end_date, budget, manage REF Professor.ssn
 
 
 
+06.8
+
+Customer / invoice: zero, one, many >>> 고객은 주문을 안할 수도 있다. 즉 고객 1, 주문 N인 관계
+Product / invoice: zero, one, many >>> 주문이 없는 물건이 있을 수도 있다. 즉 제품 1, 주문 N인 관계
+
+논리적 설계
+
+    1. 개체 사상
+고객: cust# PK, 이름, street, city, state, zip, phone
+주문: invoice# PK, totaorderamt, date, terms, shipvia, 주문고객 FK REF 고객.ID, 품목번호 FK REF 제품.prod#
+제품: prod# PK, standardprice, desc, sellprice, quantity
+    
+    2. 스키마 정의
+고객
+    cust# char(20) not null
+    street, city, state, zip varchar not null
+    name, phone varchar
+
+    primary key: cust#
+
+주문
+    invoice# char(20) not null
+    total_order_amt int not null
+    date datetime not null
+    terms, shipvia varchar
+    주문고객 char not null
+    품목번호 char not null
+    
+    primary key: invoice#
+    foreign key
+        주문고객 REF 고객.cust# on delete no action, on update cascade
+        품목번호 REF 제품.prod# on delete no action, on update cascade
+
+제품
+    prod# char(20) not null
+    desc varchar
+    standard_price int not null
+    sellprice int not null default standard_price * 1
+    quantity int not null default 0
+    
+    primary key: prod#
+        
+
+
+06.9
+조립
+    부품, 업체, 자동차 간의 삼진 관계
+    셋 다 선택 참여, 매핑 카디널리티 M:N
+    >>> 릴레이션화
+        1. 업체, 자동차, 부품의 PK / ID를 외래키 속성으로 포함
+        2. 인조키 생성: 거래번호, INT AUTO INCREMENT
+
+개체 사상: 릴레이션 정의
+업체: 번호 PK, 이름, 도시, 국가
+자동차: (번호 ID, 소유업체 FK REF 업체.번호) PK, 이름
+부품: 번호 PK, 이름, 제작년도
+납품내역: 거래번호 PK+AK, 롯트 FK REF 부품.번호, 거래처 FK REF 업체.번호, 사용모델 FK REF 자동차.번호
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
